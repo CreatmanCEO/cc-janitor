@@ -1,6 +1,6 @@
 from __future__ import annotations
-import fnmatch, json, os
-from dataclasses import dataclass, asdict, field
+import fnmatch, json
+from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
@@ -52,7 +52,10 @@ class AuditLog:
                 line = line.strip()
                 if not line:
                     continue
-                d = json.loads(line)
+                try:
+                    d = json.loads(line)
+                except json.JSONDecodeError:
+                    continue  # skip truncated/corrupt lines — best-effort forensics
                 if cmd_glob and not fnmatch.fnmatch(d["cmd"], cmd_glob):
                     continue
                 yield AuditEntry(**d)
