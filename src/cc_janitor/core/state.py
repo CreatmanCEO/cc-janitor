@@ -5,11 +5,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-def _user_home() -> Path:
-    # Windows: USERPROFILE wins, else HOME
-    return Path(os.environ.get("USERPROFILE") or os.environ["HOME"])
-
-
 @dataclass(frozen=True)
 class Paths:
     home: Path
@@ -48,6 +43,6 @@ class Paths:
 
 
 def get_paths() -> Paths:
-    override = os.environ.get("CC_JANITOR_HOME")
-    home = Path(override) if override else _user_home() / ".cc-janitor"
+    override = (os.environ.get("CC_JANITOR_HOME") or "").strip()
+    home = Path(override).expanduser() if override else Path.home() / ".cc-janitor"
     return Paths(home=home)
