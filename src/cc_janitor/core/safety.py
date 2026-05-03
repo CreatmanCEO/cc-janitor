@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -35,7 +36,14 @@ class TrashItem:
 
 
 def _trash_id(now: datetime) -> str:
-    return now.strftime("%Y%m%dT%H%M%S%f")
+    """Return a sortable, collision-resistant trash bucket id.
+
+    Format: ``YYYYMMDDTHHMMSSffffff-<6-hex-chars>``. The timestamp gives
+    chronological ordering when iterating buckets; the random suffix
+    prevents collisions when many soft_delete calls occur in the same
+    microsecond (e.g. bulk permission prune).
+    """
+    return now.strftime("%Y%m%dT%H%M%S%f") + "-" + secrets.token_hex(3)
 
 
 def soft_delete(src: Path, *, paths: Paths) -> str:
@@ -76,12 +84,24 @@ def list_trash(paths: Paths) -> list[TrashItem]:
 
 
 def restore_from_trash(trash_id: str, *, paths: Paths) -> Path:
+    """Restore a trashed item to its original path.
+
+    Raises:
+        FileNotFoundError: if ``trash_id`` does not name a known bucket.
+        FileExistsError: if the original path is now occupied. The trash
+            bucket is left intact so the caller can decide what to do.
+    """
     bucket = paths.trash / trash_id
     meta_p = bucket / "_meta.json"
     if not meta_p.exists():
         raise FileNotFoundError(f"No trash entry: {trash_id}")
     m = json.loads(meta_p.read_text(encoding="utf-8"))
     dst = Path(m["original_path"])
+    if dst.exists():
+        raise FileExistsError(
+            f"Cannot restore — original path is occupied: {dst}"
+        )
+    dst.parent.mkdir(parents=True, exist_ok=True)
     src = bucket / m["name"]
     shutil.move(str(src), str(dst))
     meta_p.unlink()
