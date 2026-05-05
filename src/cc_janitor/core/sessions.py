@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -116,9 +117,8 @@ from .state import get_paths
 
 
 def _claude_projects_root() -> Path:
-    paths = get_paths()
-    home = paths.home.parent  # ~/.cc-janitor → ~
-    return home / ".claude" / "projects"
+    """Locate ``~/.claude/projects`` (the user-home, NOT cc-janitor home)."""
+    return Path.home() / ".claude" / "projects"
 
 
 def _cache_path() -> Path:
@@ -138,14 +138,27 @@ def _serialize(s: Session) -> dict:
         "last_user_msg": s.last_user_msg,
         "compactions": s.compactions,
         "tokens_estimate": s.tokens_estimate,
-        "mtime": s.jsonl_path.stat().st_mtime if s.jsonl_path.exists() else 0,
+        "related_dirs": [str(p) for p in s.related_dirs],
+        "summaries": [
+            {
+                "source": x.source,
+                "text": x.text,
+                "timestamp": x.timestamp.isoformat() if x.timestamp else None,
+                "md_path": str(x.md_path) if x.md_path else None,
+            }
+            for x in s.summaries
+        ],
+        "mtime_ns": s.jsonl_path.stat().st_mtime_ns if s.jsonl_path.exists() else 0,
     }
 
 
 def _deserialize(d: dict) -> Session | None:
     p = Path(d["jsonl_path"])
-    if not p.exists() or p.stat().st_mtime != d.get("mtime"):
-        return None  # cache invalid for this entry
+    if not p.exists():
+        return None
+    st = p.stat()
+    if st.st_mtime_ns != d.get("mtime_ns") or st.st_size != d.get("size_bytes"):
+        return None  # cache invalid: file changed
     return Session(
         id=d["id"],
         project=d["project"],
@@ -158,6 +171,16 @@ def _deserialize(d: dict) -> Session | None:
         last_user_msg=d["last_user_msg"],
         compactions=d["compactions"],
         tokens_estimate=d.get("tokens_estimate", 0),
+        related_dirs=[Path(p) for p in d.get("related_dirs", [])],
+        summaries=[
+            SessionSummary(
+                source=x["source"],
+                text=x["text"],
+                timestamp=datetime.fromisoformat(x["timestamp"]) if x.get("timestamp") else None,
+                md_path=Path(x["md_path"]) if x.get("md_path") else None,
+            )
+            for x in d.get("summaries", [])
+        ],
     )
 
 
@@ -191,8 +214,10 @@ def discover_sessions(*, project: str | None = None, refresh: bool = False) -> l
                 session = parse_session(jsonl_p, project=proj_dir.name)
             out.append(session)
 
-    cache_p.write_text(
+    tmp = cache_p.with_suffix(cache_p.suffix + ".tmp")
+    tmp.write_text(
         json.dumps([_serialize(s) for s in out], ensure_ascii=False),
         encoding="utf-8",
     )
+    os.replace(tmp, cache_p)
     return out
