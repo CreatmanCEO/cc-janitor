@@ -1,8 +1,9 @@
 from __future__ import annotations
+import fnmatch
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -98,3 +99,72 @@ def discover_rules() -> list[PermRule]:
             if r:
                 out.append(r)
     return out
+
+
+def _iter_tool_uses(jsonl: Path):
+    """Yield (tool_name, input, timestamp) tuples for every tool_use block."""
+    if not jsonl.exists():
+        return
+    with jsonl.open("r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                m = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            content = (m.get("message") or {}).get("content")
+            ts = m.get("timestamp")
+            try:
+                t = datetime.fromisoformat(ts.replace("Z", "+00:00")) if ts else None
+            except (ValueError, AttributeError):
+                t = None
+            if isinstance(content, list):
+                for blk in content:
+                    if isinstance(blk, dict) and blk.get("type") == "tool_use":
+                        yield blk.get("name"), blk.get("input") or {}, t
+
+
+def _match_command(pattern: str, command: str) -> bool:
+    """fnmatch-based glob with empty pattern == match-anything semantics."""
+    if pattern == "":
+        return True
+    return fnmatch.fnmatchcase(command, pattern)
+
+
+def analyze_usage(
+    rules: list[PermRule],
+    sessions,
+    *,
+    stale_after_days: int = 90,
+) -> list[PermRule]:
+    """Match transcript tool_use against rules; populate match counts + stale flag.
+
+    Mutates and returns the same rules list.
+    """
+    now = datetime.now(timezone.utc)
+    cutoff_30 = now - timedelta(days=30)
+    cutoff_stale = now - timedelta(days=stale_after_days)
+
+    for s in sessions:
+        for tool_name, inp, ts in _iter_tool_uses(s.jsonl_path):
+            target = inp.get("command") or inp.get("file_path") or ""
+            if not isinstance(target, str):
+                continue
+            for r in rules:
+                if r.tool != tool_name:
+                    continue
+                if not _match_command(r.pattern, target):
+                    continue
+                effective_ts = ts if ts is not None else now
+                if r.last_matched_at is None or effective_ts > r.last_matched_at:
+                    r.last_matched_at = effective_ts
+                if effective_ts >= cutoff_30:
+                    r.match_count_30d += 1
+                if effective_ts >= cutoff_stale:
+                    r.match_count_90d += 1
+
+    for r in rules:
+        r.stale = r.match_count_90d == 0
+    return rules
