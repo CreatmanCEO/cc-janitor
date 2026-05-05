@@ -110,3 +110,89 @@ def parse_session(jsonl_path: Path, *, project: str) -> Session:
         related_dirs=related,
         summaries=summaries,
     )
+
+
+from .state import get_paths
+
+
+def _claude_projects_root() -> Path:
+    paths = get_paths()
+    home = paths.home.parent  # ~/.cc-janitor → ~
+    return home / ".claude" / "projects"
+
+
+def _cache_path() -> Path:
+    return get_paths().cache / "sessions.json"
+
+
+def _serialize(s: Session) -> dict:
+    return {
+        "id": s.id,
+        "project": s.project,
+        "jsonl_path": str(s.jsonl_path),
+        "started_at": s.started_at.isoformat() if s.started_at else None,
+        "last_activity": s.last_activity.isoformat(),
+        "size_bytes": s.size_bytes,
+        "message_count": s.message_count,
+        "first_user_msg": s.first_user_msg,
+        "last_user_msg": s.last_user_msg,
+        "compactions": s.compactions,
+        "tokens_estimate": s.tokens_estimate,
+        "mtime": s.jsonl_path.stat().st_mtime if s.jsonl_path.exists() else 0,
+    }
+
+
+def _deserialize(d: dict) -> Session | None:
+    p = Path(d["jsonl_path"])
+    if not p.exists() or p.stat().st_mtime != d.get("mtime"):
+        return None  # cache invalid for this entry
+    return Session(
+        id=d["id"],
+        project=d["project"],
+        jsonl_path=p,
+        started_at=datetime.fromisoformat(d["started_at"]) if d["started_at"] else None,
+        last_activity=datetime.fromisoformat(d["last_activity"]),
+        size_bytes=d["size_bytes"],
+        message_count=d["message_count"],
+        first_user_msg=d["first_user_msg"],
+        last_user_msg=d["last_user_msg"],
+        compactions=d["compactions"],
+        tokens_estimate=d.get("tokens_estimate", 0),
+    )
+
+
+def discover_sessions(*, project: str | None = None, refresh: bool = False) -> list[Session]:
+    paths = get_paths()
+    paths.ensure_dirs()
+    cache_p = _cache_path()
+    cache: dict[str, dict] = {}
+    if cache_p.exists() and not refresh:
+        try:
+            cache = {e["id"]: e for e in json.loads(cache_p.read_text(encoding="utf-8"))}
+        except (json.JSONDecodeError, KeyError):
+            cache = {}
+
+    out: list[Session] = []
+    root = _claude_projects_root()
+    if not root.exists():
+        return out
+    for proj_dir in root.iterdir():
+        if not proj_dir.is_dir():
+            continue
+        if project and proj_dir.name != project:
+            continue
+        for jsonl_p in proj_dir.glob("*.jsonl"):
+            sid = jsonl_p.stem
+            cached_entry = cache.get(sid)
+            session = None
+            if cached_entry:
+                session = _deserialize(cached_entry)
+            if session is None:
+                session = parse_session(jsonl_p, project=proj_dir.name)
+            out.append(session)
+
+    cache_p.write_text(
+        json.dumps([_serialize(s) for s in out], ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return out
