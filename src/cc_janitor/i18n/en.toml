@@ -1,0 +1,20 @@
+[common]
+delete = "Delete"
+cancel = "Cancel"
+confirm = "Confirm"
+yes = "Yes"
+no = "No"
+
+[sessions]
+title = "Sessions"
+delete_confirm = "Delete {count} session(s)?"
+preview_first_msg = "First user message"
+
+[perms]
+title = "Permissions"
+stale = "stale"
+duplicate = "duplicate"
+
+[context]
+title = "Context"
+total_per_request = "Total recurring per request"

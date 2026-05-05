@@ -1,0 +1,20 @@
+[common]
+delete = "Удалить"
+cancel = "Отмена"
+confirm = "Подтвердить"
+yes = "Да"
+no = "Нет"
+
+[sessions]
+title = "Сессии"
+delete_confirm = "Удалить {count} сессий?"
+preview_first_msg = "Первое сообщение пользователя"
+
+[perms]
+title = "Разрешения"
+stale = "устаревшее"
+duplicate = "дубликат"
+
+[context]
+title = "Контекст"
+total_per_request = "Всего на каждый запрос"
