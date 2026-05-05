@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import sys
 
 
@@ -7,9 +8,8 @@ def main() -> None:
         from .cli import app
         app()
     else:
-        # TUI path — deferred to Task 21. For now route to CLI help.
-        from .cli import app
-        app(["--help"])
+        from .tui.app import run
+        run()
 
 
 if __name__ == "__main__":
