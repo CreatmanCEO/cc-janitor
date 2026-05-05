@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(git status)",
+      "Bash(npm *)",
+      "Bash(ssh user@old-host:*)"
+    ]
+  }
+}

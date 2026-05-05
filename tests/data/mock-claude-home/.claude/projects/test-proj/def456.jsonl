@@ -1,0 +1,6 @@
+{"type":"user","message":{"content":"run git status"},"sessionId":"def456","timestamp":"2026-04-15T12:00:00Z"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"git status"}}]},"sessionId":"def456"}
+{"type":"user","message":{"content":[{"type":"tool_result","content":"clean"}]},"sessionId":"def456"}
+{"type":"summary","summary":"Ran git status, tree clean.","sessionId":"def456","timestamp":"2026-04-15T12:01:00Z"}
+{"type":"user","message":{"content":"now npm test"},"sessionId":"def456","timestamp":"2026-04-15T12:02:00Z"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"npm test"}}]},"sessionId":"def456"}
