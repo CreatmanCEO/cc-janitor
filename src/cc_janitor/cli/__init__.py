@@ -32,3 +32,6 @@ app.add_typer(session_app, name="session")
 
 from .commands.perms import perms_app
 app.add_typer(perms_app, name="perms")
+
+from .commands.context import context_app
+app.add_typer(context_app, name="context")
