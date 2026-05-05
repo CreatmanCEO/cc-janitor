@@ -35,3 +35,9 @@ app.add_typer(perms_app, name="perms")
 
 from .commands.context import context_app
 app.add_typer(context_app, name="context")
+
+from .commands.doctor import doctor as _doctor
+from .commands.install_hooks import install_hooks as _install_hooks
+
+app.command("doctor", help="Health check")(_doctor)
+app.command("install-hooks", help="Install reinject PreToolUse hook")(_install_hooks)
