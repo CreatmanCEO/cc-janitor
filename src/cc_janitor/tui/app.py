@@ -24,7 +24,8 @@ class CcJanitorApp(App):
         yield Header(show_clock=False)
         with TabbedContent():
             with TabPane(t("sessions.title"), id="sessions"):
-                yield Static("Sessions screen — TODO")
+                from .screens.sessions_screen import SessionsScreen
+                yield SessionsScreen()
             with TabPane(t("perms.title"), id="perms"):
                 yield Static("Permissions screen — TODO")
             with TabPane(t("context.title"), id="context"):
