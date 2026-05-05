@@ -25,3 +25,7 @@ def root(
     if lang:
         from ..i18n import set_lang
         set_lang(lang)
+
+
+from .commands.session import session_app
+app.add_typer(session_app, name="session")
