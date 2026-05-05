@@ -27,9 +27,11 @@ class CcJanitorApp(App):
                 from .screens.sessions_screen import SessionsScreen
                 yield SessionsScreen()
             with TabPane(t("perms.title"), id="perms"):
-                yield Static("Permissions screen — TODO")
+                from .screens.perms_screen import PermsScreen
+                yield PermsScreen()
             with TabPane(t("context.title"), id="context"):
-                yield Static("Context screen — TODO")
+                from .screens.context_screen import ContextScreen
+                yield ContextScreen()
             with TabPane("Memory", id="memory"):
                 yield Static("Memory screen — TODO")
             with TabPane("Hooks", id="hooks"):
