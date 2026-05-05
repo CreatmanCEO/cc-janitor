@@ -1,6 +1,5 @@
-import json
-from pathlib import Path
-from cc_janitor.core.audit import AuditLog, AuditEntry
+from cc_janitor.core.audit import AuditLog
+
 
 def test_record_and_read(tmp_path):
     log = AuditLog(tmp_path / "audit.log")

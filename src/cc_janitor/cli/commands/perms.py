@@ -1,15 +1,16 @@
 from __future__ import annotations
+
 import typer
 
 from ...core.permissions import (
-    discover_rules,
+    add_rule,
     analyze_usage,
+    discover_rules,
     find_duplicates,
     remove_rule,
-    add_rule,
 )
-from ...core.sessions import discover_sessions
 from ...core.safety import NotConfirmedError
+from ...core.sessions import discover_sessions
 from .._audit import audit_action
 
 perms_app = typer.Typer(help="Audit and prune permission rules")
@@ -72,16 +73,20 @@ def dedupe(dry_run: bool = typer.Option(False, "--dry-run")) -> None:
                     for r in d.rules[1:]:
                         remove_rule(r)
                         typer.echo(f"removed exact dup: {r.raw} from {r.source.path}")
-                        removed.append({"raw": r.raw, "source": str(r.source.path), "kind": "exact"})
+                        removed.append(
+                            {"raw": r.raw, "source": str(r.source.path), "kind": "exact"}
+                        )
                 elif d.kind == "subsumed":
-                    broad, narrow = d.rules[0], d.rules[1]
+                    narrow = d.rules[1]
                     remove_rule(narrow)
                     typer.echo(f"removed subsumed: {narrow.raw}")
-                    removed.append({"raw": narrow.raw, "source": str(narrow.source.path), "kind": "subsumed"})
+                    removed.append(
+                        {"raw": narrow.raw, "source": str(narrow.source.path), "kind": "subsumed"}
+                    )
                 # conflict + empty: warn-only / require manual review
             except NotConfirmedError as e:
                 typer.echo(str(e), err=True)
-                raise typer.Exit(code=2)
+                raise typer.Exit(code=2) from e
         changed["removed"] = removed
 
 
@@ -105,7 +110,7 @@ def prune(
                 removed.append({"raw": r.raw, "source": str(r.source.path)})
             except NotConfirmedError as e:
                 typer.echo(str(e), err=True)
-                raise typer.Exit(code=2)
+                raise typer.Exit(code=2) from e
         changed["removed"] = removed
 
 
@@ -127,7 +132,7 @@ def remove(
             changed["removed"] = [{"raw": raw, "source": from_}]
         except NotConfirmedError as e:
             typer.echo(str(e), err=True)
-            raise typer.Exit(code=2)
+            raise typer.Exit(code=2) from e
 
 
 @perms_app.command("add")
@@ -143,4 +148,4 @@ def add(
             changed["added"] = [{"raw": raw, "scope": to, "decision": decision}]
         except NotConfirmedError as e:
             typer.echo(str(e), err=True)
-            raise typer.Exit(code=2)
+            raise typer.Exit(code=2) from e

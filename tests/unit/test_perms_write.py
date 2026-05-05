@@ -16,9 +16,10 @@ def test_remove_rule_writes_backup_and_removes(mock_claude_home, monkeypatch):
 
 
 def test_remove_rule_requires_confirmed(mock_claude_home, monkeypatch):
+    import pytest
+
     from cc_janitor.core.permissions import discover_rules, remove_rule
     from cc_janitor.core.safety import NotConfirmedError
-    import pytest
     monkeypatch.delenv("CC_JANITOR_USER_CONFIRMED", raising=False)
     rules = discover_rules()
     with pytest.raises(NotConfirmedError):

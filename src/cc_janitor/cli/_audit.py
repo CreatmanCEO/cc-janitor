@@ -1,10 +1,11 @@
 from __future__ import annotations
+
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
 
 from ..core.audit import AuditLog
-from ..core.state import get_paths
 from ..core.safety import is_confirmed
+from ..core.state import get_paths
 
 
 @contextmanager

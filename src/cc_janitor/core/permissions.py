@@ -1,17 +1,17 @@
 from __future__ import annotations
+
 import fnmatch
 import hashlib
 import json
 import re
 import shutil
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
 from .safety import require_confirmed
 from .state import get_paths
-
 
 Scope = Literal["user", "user-local", "project", "project-local", "managed", "approved-tools"]
 
@@ -148,7 +148,7 @@ def analyze_usage(
 
     Mutates and returns the same rules list.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cutoff_30 = now - timedelta(days=30)
     cutoff_stale = now - timedelta(days=stale_after_days)
 
@@ -266,7 +266,7 @@ def _backup(path: Path) -> Path:
     h = hashlib.sha1(str(path).encode("utf-8")).hexdigest()[:12]
     bucket = paths.backups / h
     bucket.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     dst = bucket / f"{path.name}.{ts}.bak"
     shutil.copy2(path, dst)
     return dst

@@ -60,6 +60,16 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "RUF"]
 
+[tool.ruff.lint.per-file-ignores]
+# Tests routinely import inside functions (lazy isolation, fixtures) and have
+# long literal data strings — relax E402 (imports not at top) and E501 (line length).
+"tests/**/*.py" = ["E402", "E501"]
+# Typer's idiomatic API uses function calls in argument defaults
+# (typer.Option(...), Path.cwd(), etc.). Suppress B008 in the CLI tree.
+"src/cc_janitor/cli/**/*.py" = ["B008"]
+# Textual's BINDINGS attribute is idiomatically a class-level list.
+"src/cc_janitor/tui/**/*.py" = ["RUF012"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"

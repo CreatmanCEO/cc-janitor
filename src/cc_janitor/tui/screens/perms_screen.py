@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import DataTable, Static
 
-from ...core.permissions import discover_rules, analyze_usage, find_duplicates
+from ...core.permissions import analyze_usage, discover_rules, find_duplicates
 from ...core.sessions import discover_sessions
 
 

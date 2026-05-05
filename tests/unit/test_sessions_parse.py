@@ -1,4 +1,3 @@
-from pathlib import Path
 from cc_janitor.core.sessions import parse_session
 
 

@@ -1,12 +1,13 @@
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
 import typer
 
-from ...core.state import get_paths
-from ...core.sessions import discover_sessions
 from ...core.permissions import discover_rules
+from ...core.sessions import discover_sessions
+from ...core.state import get_paths
 
 
 def doctor() -> None:

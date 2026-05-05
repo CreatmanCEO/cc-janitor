@@ -1,10 +1,14 @@
 from __future__ import annotations
+
 import json
 import os
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterator, Literal
+from typing import Literal
+
+from .state import get_paths
 
 
 @dataclass
@@ -73,7 +77,7 @@ def parse_session(jsonl_path: Path, *, project: str) -> Session:
             return None
 
     started_at = _ts(user_msgs[0]) if user_msgs else None
-    last_activity = datetime.fromtimestamp(jsonl_path.stat().st_mtime, tz=timezone.utc)
+    last_activity = datetime.fromtimestamp(jsonl_path.stat().st_mtime, tz=UTC)
 
     first_user = ""
     last_user = ""
@@ -111,9 +115,6 @@ def parse_session(jsonl_path: Path, *, project: str) -> Session:
         related_dirs=related,
         summaries=summaries,
     )
-
-
-from .state import get_paths
 
 
 def _claude_projects_root() -> Path:
@@ -263,7 +264,8 @@ def delete_session(s: Session) -> str:
     paths = get_paths()
     paths.ensure_dirs()
 
-    import tempfile, shutil
+    import shutil
+    import tempfile
     # Build a single bundle directory containing jsonl + related_dirs,
     # then soft_delete the bundle as one unit.
     with tempfile.TemporaryDirectory(prefix="ccj-bundle-", dir=paths.home) as td:

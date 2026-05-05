@@ -5,7 +5,7 @@ import os
 import secrets
 import shutil
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .state import Paths
@@ -48,7 +48,7 @@ def _trash_id(now: datetime) -> str:
 
 def soft_delete(src: Path, *, paths: Paths) -> str:
     paths.ensure_dirs()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     tid = _trash_id(now)
     bucket = paths.trash / tid
     bucket.mkdir(parents=True)

@@ -1,4 +1,5 @@
 from typer.testing import CliRunner
+
 from cc_janitor.cli import app
 
 

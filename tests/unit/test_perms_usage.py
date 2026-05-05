@@ -1,5 +1,5 @@
 def test_analyze_usage_marks_stale(mock_claude_home):
-    from cc_janitor.core.permissions import discover_rules, analyze_usage
+    from cc_janitor.core.permissions import analyze_usage, discover_rules
     from cc_janitor.core.sessions import discover_sessions
     rules = discover_rules()
     sessions = discover_sessions()
@@ -20,7 +20,7 @@ def test_analyze_usage_match_command_exact():
 
 
 def test_analyze_usage_empty_sessions(mock_claude_home):
-    from cc_janitor.core.permissions import discover_rules, analyze_usage
+    from cc_janitor.core.permissions import analyze_usage, discover_rules
     rules = discover_rules()
     enriched = analyze_usage(rules, [], stale_after_days=90)
     # All rules with non-empty pattern should be stale (no matches)

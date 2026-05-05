@@ -1,9 +1,11 @@
 from __future__ import annotations
-import fnmatch, json
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
+
+import fnmatch
+import json
+from collections.abc import Iterator
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterator
 
 ISO = "%Y-%m-%dT%H:%M:%S%z"
 
@@ -28,7 +30,7 @@ class AuditLog:
     def _maybe_rotate(self) -> None:
         if not self.path.exists() or self.path.stat().st_size < self.max_bytes:
             return
-        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+        ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
         target = self.path.with_name(f"{self.path.name}.{ts}")
         n = 0
         while target.exists():
@@ -37,7 +39,7 @@ class AuditLog:
         self.path.rename(target)
 
     def record(self, **kwargs) -> AuditEntry:
-        kwargs.setdefault("ts", datetime.now(timezone.utc).strftime(ISO))
+        kwargs.setdefault("ts", datetime.now(UTC).strftime(ISO))
         entry = AuditEntry(**kwargs)
         self._maybe_rotate()
         with self.path.open("a", encoding="utf-8") as f:

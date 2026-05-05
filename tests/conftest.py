@@ -1,7 +1,9 @@
 # tests/conftest.py
 from __future__ import annotations
+
 import shutil
 from pathlib import Path
+
 import pytest
 
 DATA = Path(__file__).parent / "data" / "mock-claude-home"

@@ -1,4 +1,4 @@
-from cc_janitor.i18n import t, set_lang, detect_lang
+from cc_janitor.i18n import detect_lang, set_lang, t
 
 
 def test_basic_translation():

@@ -1,16 +1,17 @@
 from __future__ import annotations
+
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import typer
 
+from ...core.safety import NotConfirmedError
 from ...core.sessions import (
-    discover_sessions,
     delete_session,
+    discover_sessions,
     enrich_with_indexer_summaries,
 )
-from ...core.safety import NotConfirmedError
 from .._audit import audit_action
 
 session_app = typer.Typer(help="Manage Claude Code sessions")
@@ -77,7 +78,7 @@ def delete(session_ids: list[str]) -> None:
                 deleted.append({"id": sid, "trash_id": tid})
             except NotConfirmedError as e:
                 typer.echo(str(e), err=True)
-                raise typer.Exit(code=2)
+                raise typer.Exit(code=2) from e
         changed["deleted"] = deleted
         if failures:
             raise typer.Exit(code=1)
@@ -89,7 +90,7 @@ def prune(
     dry_run: bool = typer.Option(False, "--dry-run"),
 ) -> None:
     days = int(older_than.rstrip("d"))
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = datetime.now(UTC) - timedelta(days=days)
     rows = [s for s in discover_sessions() if s.last_activity < cutoff]
     typer.echo(f"{len(rows)} sessions older than {older_than}")
     for s in rows:
@@ -104,7 +105,7 @@ def prune(
                 deleted.append({"id": s.id, "trash_id": tid})
             except NotConfirmedError as e:
                 typer.echo(str(e), err=True)
-                raise typer.Exit(code=2)
+                raise typer.Exit(code=2) from e
         changed["deleted"] = deleted
 
 

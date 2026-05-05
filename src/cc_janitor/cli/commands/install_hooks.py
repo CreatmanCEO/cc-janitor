@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import json
 from pathlib import Path
 
@@ -28,6 +29,10 @@ def install_hooks() -> None:
                 typer.echo("reinject hook already installed — nothing to do")
                 return
 
+    reinject_payload = (
+        '{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
+        '"additionalContext":"cc-janitor-reinject: please re-read MEMORY.md and CLAUDE.md"}}'
+    )
     pre.append({
         "matcher": "*",
         "hooks": [{
@@ -35,8 +40,7 @@ def install_hooks() -> None:
             "command": (
                 "test -f ~/.cc-janitor/reinject-pending && "
                 "{ rm ~/.cc-janitor/reinject-pending; "
-                "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"cc-janitor-reinject: please re-read MEMORY.md and CLAUDE.md\"}}'; }"
-                " || true"
+                f"echo '{reinject_payload}'; }} || true"
             ),
             "timeout": 5,
         }],

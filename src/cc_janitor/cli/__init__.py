@@ -1,5 +1,12 @@
 from __future__ import annotations
+
 import typer
+
+from .commands.context import context_app
+from .commands.doctor import doctor as _doctor
+from .commands.install_hooks import install_hooks as _install_hooks
+from .commands.perms import perms_app
+from .commands.session import session_app
 
 __VERSION__ = "0.1.0"
 
@@ -27,17 +34,8 @@ def root(
         set_lang(lang)
 
 
-from .commands.session import session_app
 app.add_typer(session_app, name="session")
-
-from .commands.perms import perms_app
 app.add_typer(perms_app, name="perms")
-
-from .commands.context import context_app
 app.add_typer(context_app, name="context")
-
-from .commands.doctor import doctor as _doctor
-from .commands.install_hooks import install_hooks as _install_hooks
-
 app.command("doctor", help="Health check")(_doctor)
 app.command("install-hooks", help="Install reinject PreToolUse hook")(_install_hooks)

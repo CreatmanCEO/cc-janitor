@@ -1,6 +1,9 @@
 from pathlib import Path
+
 from cc_janitor.core.permissions import (
-    PermRule, PermSource, find_duplicates,
+    PermRule,
+    PermSource,
+    find_duplicates,
 )
 
 

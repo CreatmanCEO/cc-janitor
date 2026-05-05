@@ -1,8 +1,13 @@
-import os
-import pytest
 from pathlib import Path
+
+import pytest
+
 from cc_janitor.core.safety import (
-    require_confirmed, NotConfirmedError, soft_delete, restore_from_trash, list_trash,
+    NotConfirmedError,
+    list_trash,
+    require_confirmed,
+    restore_from_trash,
+    soft_delete,
 )
 from cc_janitor.core.state import Paths
 

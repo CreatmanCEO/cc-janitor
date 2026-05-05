@@ -1,6 +1,6 @@
 def test_delete_session_requires_confirmed(mock_claude_home, monkeypatch):
-    from cc_janitor.core.sessions import discover_sessions, delete_session
     from cc_janitor.core.safety import NotConfirmedError
+    from cc_janitor.core.sessions import delete_session, discover_sessions
     monkeypatch.delenv("CC_JANITOR_USER_CONFIRMED", raising=False)
     s = discover_sessions()[0]
     import pytest
@@ -9,8 +9,8 @@ def test_delete_session_requires_confirmed(mock_claude_home, monkeypatch):
 
 
 def test_delete_session_moves_to_trash(mock_claude_home, monkeypatch):
-    from cc_janitor.core.sessions import discover_sessions, delete_session
     from cc_janitor.core.safety import list_trash
+    from cc_janitor.core.sessions import delete_session, discover_sessions
     from cc_janitor.core.state import get_paths
     monkeypatch.setenv("CC_JANITOR_USER_CONFIRMED", "1")
     sessions = discover_sessions()
@@ -22,7 +22,7 @@ def test_delete_session_moves_to_trash(mock_claude_home, monkeypatch):
 
 def test_delete_session_includes_related_dir(mock_claude_home, monkeypatch):
     """If <sid>/ exists with subagents, the whole bundle goes to trash together."""
-    from cc_janitor.core.sessions import discover_sessions, delete_session
+    from cc_janitor.core.sessions import delete_session, discover_sessions
     monkeypatch.setenv("CC_JANITOR_USER_CONFIRMED", "1")
     # Pre-create per-session dir for abc123
     abc_dir = mock_claude_home / ".claude" / "projects" / "test-proj" / "abc123"

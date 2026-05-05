@@ -50,6 +50,7 @@ def test_cache_round_trips_related_dirs_and_summaries(mock_claude_home):
 def test_cache_invalidates_on_size_change_same_mtime(mock_claude_home):
     """Cache key includes size — a same-mtime content edit triggers re-parse."""
     import os
+
     from cc_janitor.core.sessions import discover_sessions
     discover_sessions()  # warm
     p = mock_claude_home / ".claude" / "projects" / "test-proj" / "abc123.jsonl"

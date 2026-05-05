@@ -1,5 +1,3 @@
-import os
-from pathlib import Path
 from cc_janitor.core.state import get_paths
 
 

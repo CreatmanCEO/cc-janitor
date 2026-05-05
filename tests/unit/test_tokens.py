@@ -1,4 +1,4 @@
-from cc_janitor.core.tokens import count_tokens, count_file_tokens
+from cc_janitor.core.tokens import count_file_tokens, count_tokens
 
 
 def test_count_tokens_basic():

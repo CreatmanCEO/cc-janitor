@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from pathlib import Path
 
 import typer
@@ -46,6 +47,6 @@ def find_duplicates(project: Path = typer.Option(Path.cwd(), "--project")) -> No
         return
     for line, paths in dups.items():
         unique_paths = sorted({str(p) for p in paths})
-        typer.echo(f"\n{len(unique_paths)}× {line[:80]}…")
+        typer.echo(f"\n{len(unique_paths)}x {line[:80]}…")
         for p in unique_paths:
             typer.echo(f"  - {p}")
