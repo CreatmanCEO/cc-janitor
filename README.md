@@ -36,18 +36,22 @@ maintenance (Phase 2) — all the chores no one else automates, in one tool.
 
 ## Install
 
+> ⚠️ **v0.1.x is not yet on PyPI.** Install from source until then:
+
 ```bash
-# Recommended — uv tool (isolated, fast)
-uv tool install cc-janitor
+# Recommended — uv tool from source
+uv tool install git+https://github.com/CreatmanCEO/cc-janitor
 
-# Or pipx
-pipx install cc-janitor
+# Or pipx from source
+pipx install git+https://github.com/CreatmanCEO/cc-janitor
 
-# From source for development
+# From a local clone for development
 git clone https://github.com/CreatmanCEO/cc-janitor && cd cc-janitor
 uv sync --all-extras
 uv run cc-janitor
 ```
+
+PyPI publishing arrives once Trusted Publisher is configured on pypi.org. Track via [issue #1](https://github.com/CreatmanCEO/cc-janitor/issues) once filed.
 
 ## Quick start
 
@@ -76,6 +80,8 @@ cc-janitor never silently destroys data:
 - **Soft-delete:** sessions deleted move to `~/.cc-janitor/.trash/<timestamp>/` for 30 days. Restore via `cc-janitor trash restore <id>`.
 - **Backups before write:** every settings.json edit creates a timestamped backup in `~/.cc-janitor/backups/<sha-of-path>/`.
 - **Audit log:** every mutating action appends a JSONL record to `~/.cc-janitor/audit.log` (rotates at 10 MB).
+
+> **Windows users:** `cc-janitor install-hooks` writes a POSIX shell snippet (`test -f`, `&&`). On native Windows without Git Bash / WSL the hook will fail silently. Cross-platform PowerShell support lands in 0.2.0 (Phase 2). Use Git Bash or WSL in the meantime.
 
 ## Using from inside Claude Code
 

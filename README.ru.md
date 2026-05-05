@@ -37,18 +37,22 @@
 
 ## Установка
 
+> ⚠️ **v0.1.x ещё не опубликована на PyPI.** Пока устанавливайте из исходников:
+
 ```bash
-# Рекомендуется — uv tool (изолированно, быстро)
-uv tool install cc-janitor
+# Рекомендуется — uv tool из исходников
+uv tool install git+https://github.com/CreatmanCEO/cc-janitor
 
-# Или pipx
-pipx install cc-janitor
+# Или pipx из исходников
+pipx install git+https://github.com/CreatmanCEO/cc-janitor
 
-# Из исходников для разработки
+# Из локального клона для разработки
 git clone https://github.com/CreatmanCEO/cc-janitor && cd cc-janitor
 uv sync --all-extras
 uv run cc-janitor
 ```
+
+Публикация на PyPI появится после настройки Trusted Publisher на pypi.org. Отслеживайте в [issue #1](https://github.com/CreatmanCEO/cc-janitor/issues), когда он будет создан.
 
 ## Быстрый старт
 
@@ -77,6 +81,8 @@ cc-janitor никогда не уничтожает данные молча:
 - **Мягкое удаление:** удалённые сессии переезжают в `~/.cc-janitor/.trash/<timestamp>/` на 30 дней. Восстановление: `cc-janitor trash restore <id>`.
 - **Бэкап перед записью:** каждое изменение settings.json создаёт timestamped-бэкап в `~/.cc-janitor/backups/<sha-of-path>/`.
 - **Журнал аудита:** каждое мутирующее действие пишется JSONL-записью в `~/.cc-janitor/audit.log` (ротация при 10 МБ).
+
+> **Пользователям Windows:** `cc-janitor install-hooks` записывает POSIX-shell сниппет (`test -f`, `&&`). На нативной Windows без Git Bash / WSL хук будет молча падать. Кроссплатформенная поддержка PowerShell появится в 0.2.0 (Phase 2). Пока используйте Git Bash или WSL.
 
 ## Использование изнутри Claude Code
 

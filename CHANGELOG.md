@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-05-05
+
+### Added
+- `cc-janitor trash list/restore/empty` subcommands — completes the soft-delete → restore round-trip promised in v0.1.0
+- `cc-janitor audit list [--since][--cmd][--failed][--json]` — first user-facing read access to the audit log
+
+### Documentation
+- README install instructions now use `git+https://...` since the package isn't on PyPI yet
+- README and README.ru add a Windows limitation callout for `install-hooks` (Phase 2 will add PowerShell support)
+
 ### Added — Phase 1 MVP
 
 #### Foundation
