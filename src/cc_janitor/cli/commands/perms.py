@@ -10,6 +10,7 @@ from ...core.permissions import (
 )
 from ...core.sessions import discover_sessions
 from ...core.safety import NotConfirmedError
+from .._audit import audit_action
 
 perms_app = typer.Typer(help="Audit and prune permission rules")
 
@@ -63,20 +64,25 @@ def dedupe(dry_run: bool = typer.Option(False, "--dry-run")) -> None:
         typer.echo(f"[{d.kind}] {d.suggestion}")
     if dry_run or not dups:
         return
-    for d in dups:
-        try:
-            if d.kind == "exact":
-                for r in d.rules[1:]:
-                    remove_rule(r)
-                    typer.echo(f"removed exact dup: {r.raw} from {r.source.path}")
-            elif d.kind == "subsumed":
-                broad, narrow = d.rules[0], d.rules[1]
-                remove_rule(narrow)
-                typer.echo(f"removed subsumed: {narrow.raw}")
-            # conflict + empty: warn-only / require manual review
-        except NotConfirmedError as e:
-            typer.echo(str(e), err=True)
-            raise typer.Exit(code=2)
+    with audit_action("perms dedupe", []) as changed:
+        removed: list[dict] = []
+        for d in dups:
+            try:
+                if d.kind == "exact":
+                    for r in d.rules[1:]:
+                        remove_rule(r)
+                        typer.echo(f"removed exact dup: {r.raw} from {r.source.path}")
+                        removed.append({"raw": r.raw, "source": str(r.source.path), "kind": "exact"})
+                elif d.kind == "subsumed":
+                    broad, narrow = d.rules[0], d.rules[1]
+                    remove_rule(narrow)
+                    typer.echo(f"removed subsumed: {narrow.raw}")
+                    removed.append({"raw": narrow.raw, "source": str(narrow.source.path), "kind": "subsumed"})
+                # conflict + empty: warn-only / require manual review
+            except NotConfirmedError as e:
+                typer.echo(str(e), err=True)
+                raise typer.Exit(code=2)
+        changed["removed"] = removed
 
 
 @perms_app.command("prune")
@@ -91,12 +97,16 @@ def prune(
         typer.echo(f"  {r.tool}({r.pattern})  in {r.source.path}")
     if dry_run:
         return
-    for r in stale:
-        try:
-            remove_rule(r)
-        except NotConfirmedError as e:
-            typer.echo(str(e), err=True)
-            raise typer.Exit(code=2)
+    with audit_action("perms prune", [older_than]) as changed:
+        removed: list[dict] = []
+        for r in stale:
+            try:
+                remove_rule(r)
+                removed.append({"raw": r.raw, "source": str(r.source.path)})
+            except NotConfirmedError as e:
+                typer.echo(str(e), err=True)
+                raise typer.Exit(code=2)
+        changed["removed"] = removed
 
 
 @perms_app.command("remove")
@@ -104,18 +114,20 @@ def remove(
     raw: str,
     from_: str = typer.Option(..., "--from"),
 ) -> None:
-    rules = discover_rules()
-    target = next(
-        (r for r in rules if r.raw == raw and str(r.source.path) == from_), None
-    )
-    if not target:
-        raise typer.BadParameter("Rule not found in given source")
-    try:
-        remove_rule(target)
-        typer.echo(f"removed {raw}")
-    except NotConfirmedError as e:
-        typer.echo(str(e), err=True)
-        raise typer.Exit(code=2)
+    with audit_action("perms remove", [raw, from_]) as changed:
+        rules = discover_rules()
+        target = next(
+            (r for r in rules if r.raw == raw and str(r.source.path) == from_), None
+        )
+        if not target:
+            raise typer.BadParameter("Rule not found in given source")
+        try:
+            remove_rule(target)
+            typer.echo(f"removed {raw}")
+            changed["removed"] = [{"raw": raw, "source": from_}]
+        except NotConfirmedError as e:
+            typer.echo(str(e), err=True)
+            raise typer.Exit(code=2)
 
 
 @perms_app.command("add")
@@ -124,9 +136,11 @@ def add(
     to: str = typer.Option(..., "--to"),
     decision: str = typer.Option("allow", "--decision"),
 ) -> None:
-    try:
-        add_rule(raw, scope=to, decision=decision)
-        typer.echo(f"added {raw} -> {to}")
-    except NotConfirmedError as e:
-        typer.echo(str(e), err=True)
-        raise typer.Exit(code=2)
+    with audit_action("perms add", [raw, to, decision]) as changed:
+        try:
+            add_rule(raw, scope=to, decision=decision)
+            typer.echo(f"added {raw} -> {to}")
+            changed["added"] = [{"raw": raw, "scope": to, "decision": decision}]
+        except NotConfirmedError as e:
+            typer.echo(str(e), err=True)
+            raise typer.Exit(code=2)

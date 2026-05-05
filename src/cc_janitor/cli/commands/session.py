@@ -11,6 +11,7 @@ from ...core.sessions import (
     enrich_with_indexer_summaries,
 )
 from ...core.safety import NotConfirmedError
+from .._audit import audit_action
 
 session_app = typer.Typer(help="Manage Claude Code sessions")
 
@@ -61,21 +62,25 @@ def summary(session_id: str) -> None:
 
 @session_app.command("delete")
 def delete(session_ids: list[str]) -> None:
-    sessions = {s.id: s for s in discover_sessions()}
-    failures = 0
-    for sid in session_ids:
-        if sid not in sessions:
-            typer.echo(f"skip {sid}: not found", err=True)
-            failures += 1
-            continue
-        try:
-            tid = delete_session(sessions[sid])
-            typer.echo(f"deleted {sid} -> trash:{tid}")
-        except NotConfirmedError as e:
-            typer.echo(str(e), err=True)
-            raise typer.Exit(code=2)
-    if failures:
-        raise typer.Exit(code=1)
+    with audit_action("session delete", list(session_ids)) as changed:
+        sessions = {s.id: s for s in discover_sessions()}
+        deleted: list[dict] = []
+        failures = 0
+        for sid in session_ids:
+            if sid not in sessions:
+                typer.echo(f"skip {sid}: not found", err=True)
+                failures += 1
+                continue
+            try:
+                tid = delete_session(sessions[sid])
+                typer.echo(f"deleted {sid} -> trash:{tid}")
+                deleted.append({"id": sid, "trash_id": tid})
+            except NotConfirmedError as e:
+                typer.echo(str(e), err=True)
+                raise typer.Exit(code=2)
+        changed["deleted"] = deleted
+        if failures:
+            raise typer.Exit(code=1)
 
 
 @session_app.command("prune")
@@ -91,12 +96,16 @@ def prune(
         typer.echo(f"  {s.id}  {s.last_activity.date()}  {s.first_user_msg[:50]}")
     if dry_run:
         return
-    for s in rows:
-        try:
-            delete_session(s)
-        except NotConfirmedError as e:
-            typer.echo(str(e), err=True)
-            raise typer.Exit(code=2)
+    with audit_action("session prune", [older_than]) as changed:
+        deleted: list[dict] = []
+        for s in rows:
+            try:
+                tid = delete_session(s)
+                deleted.append({"id": s.id, "trash_id": tid})
+            except NotConfirmedError as e:
+                typer.echo(str(e), err=True)
+                raise typer.Exit(code=2)
+        changed["deleted"] = deleted
 
 
 @session_app.command("search")
