@@ -32,7 +32,9 @@ class Session:
 
 
 def _iter_jsonl(p: Path) -> Iterator[dict]:
-    with p.open("r", encoding="utf-8") as f:
+    # errors="replace" so a partial UTF-8 codepoint at end of file (truncated
+    # mid-write) corrupts at most one line instead of killing the iterator.
+    with p.open("r", encoding="utf-8", errors="replace") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -85,14 +87,14 @@ def parse_session(jsonl_path: Path, *, project: str) -> Session:
     if first_user:
         summaries.append(SessionSummary(source="first_msg", text=first_user))
 
+    # Per-session related directory only. subagents/ and tool-results/ live
+    # INSIDE the session dir (<sid>/subagents/, <sid>/tool-results/) — never
+    # as siblings of the jsonl. Including siblings here would cause
+    # delete_session to wipe project-wide artifacts of OTHER sessions.
     related = []
-    for d in (
-        jsonl_path.parent / sid,
-        jsonl_path.parent / "subagents",
-        jsonl_path.parent / "tool-results",
-    ):
-        if d.is_dir():
-            related.append(d)
+    session_dir = jsonl_path.parent / sid
+    if session_dir.is_dir():
+        related.append(session_dir)
 
     return Session(
         id=sid,
