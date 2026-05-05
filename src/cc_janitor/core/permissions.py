@@ -168,3 +168,87 @@ def analyze_usage(
     for r in rules:
         r.stale = r.match_count_90d == 0
     return rules
+
+
+@dataclass
+class PermDup:
+    kind: Literal["subsumed", "exact", "conflict", "empty"]
+    rules: list[PermRule]
+    suggestion: str
+
+
+def _pattern_subsumes(broad: str, narrow: str) -> bool:
+    """True iff `broad` matches `narrow` as a literal AND broad != narrow."""
+    if broad == narrow or broad == "":
+        return False
+    return fnmatch.fnmatchcase(narrow, broad)
+
+
+def find_duplicates(rules: list[PermRule]) -> list[PermDup]:
+    """Detect 4 kinds of duplication: empty, exact, subsumed, conflict.
+
+    - **empty**: rule body like ``Bash()`` (no pattern).
+    - **exact**: same (tool, pattern, decision) across multiple sources.
+    - **subsumed**: same tool/decision, broader pattern fully covers narrower.
+    - **conflict**: allow vs deny with overlapping patterns (warn only — never auto-fix).
+    """
+    out: list[PermDup] = []
+
+    # 1) empty
+    for r in rules:
+        if r.tool and not r.pattern.strip() and r.raw.endswith("()"):
+            out.append(PermDup(
+                kind="empty", rules=[r],
+                suggestion=f"Remove empty rule {r.raw} from {r.source.path}",
+            ))
+
+    # group by tool for the rest
+    by_tool: dict[str, list[PermRule]] = {}
+    for r in rules:
+        by_tool.setdefault(r.tool, []).append(r)
+
+    for tool, group in by_tool.items():
+        # 2) exact duplicates by (pattern, decision)
+        seen: dict[tuple[str, str], list[PermRule]] = {}
+        for r in group:
+            seen.setdefault((r.pattern, r.decision), []).append(r)
+        for (pat, dec), rs in seen.items():
+            if len(rs) > 1:
+                out.append(PermDup(
+                    kind="exact", rules=rs,
+                    suggestion=(
+                        f"Same rule ({tool}({pat}), {dec}) appears in "
+                        f"{len(rs)} sources — keep one."
+                    ),
+                ))
+
+        # 3) subsumed: same decision=allow, broad covers narrow
+        allows = [r for r in group if r.decision == "allow"]
+        for broad in allows:
+            for narrow in allows:
+                if broad is narrow:
+                    continue
+                if not broad.pattern or not narrow.pattern:
+                    continue
+                if _pattern_subsumes(broad.pattern, narrow.pattern):
+                    out.append(PermDup(
+                        kind="subsumed", rules=[broad, narrow],
+                        suggestion=(
+                            f"{tool}({broad.pattern}) already covers "
+                            f"{tool}({narrow.pattern})"
+                        ),
+                    ))
+
+        # 4) conflict: allow + deny with overlapping patterns
+        denies = [r for r in group if r.decision == "deny"]
+        for a in allows:
+            for d in denies:
+                if (a.pattern == d.pattern
+                        or _pattern_subsumes(a.pattern, d.pattern)
+                        or _pattern_subsumes(d.pattern, a.pattern)):
+                    out.append(PermDup(
+                        kind="conflict", rules=[a, d],
+                        suggestion="Allow vs deny overlap — review manually, do not auto-fix.",
+                    ))
+
+    return out
