@@ -1,11 +1,16 @@
 from __future__ import annotations
 import fnmatch
+import hashlib
 import json
 import re
+import shutil
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
+
+from .safety import require_confirmed
+from .state import get_paths
 
 
 Scope = Literal["user", "user-local", "project", "project-local", "managed", "approved-tools"]
@@ -252,3 +257,74 @@ def find_duplicates(rules: list[PermRule]) -> list[PermDup]:
                     ))
 
     return out
+
+
+def _backup(path: Path) -> Path:
+    """Copy ``path`` into ~/.cc-janitor/backups/<sha1-of-path>/<basename>.<ts>.bak."""
+    paths = get_paths()
+    paths.ensure_dirs()
+    h = hashlib.sha1(str(path).encode("utf-8")).hexdigest()[:12]
+    bucket = paths.backups / h
+    bucket.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    dst = bucket / f"{path.name}.{ts}.bak"
+    shutil.copy2(path, dst)
+    return dst
+
+
+def _read_settings(path: Path) -> dict:
+    """Read JSON settings, returning empty dict on missing or malformed."""
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def _write_settings(path: Path, data: dict) -> None:
+    """Write JSON with 2-space indent + trailing newline (Claude Code convention)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def remove_rule(rule: PermRule) -> None:
+    """Delete a rule from its source file. Requires CC_JANITOR_USER_CONFIRMED=1."""
+    require_confirmed()
+    path = rule.source.path
+    if not path.exists():
+        raise FileNotFoundError(path)
+    _backup(path)
+
+    if rule.source.scope == "approved-tools":
+        d = _read_settings(path)
+        arr = d.get("approvedTools") or []
+        d["approvedTools"] = [x for x in arr if x != rule.raw]
+        _write_settings(path, d)
+        return
+
+    d = _read_settings(path)
+    perms = d.setdefault("permissions", {})
+    arr = perms.get(rule.decision) or []
+    perms[rule.decision] = [x for x in arr if x != rule.raw]
+    _write_settings(path, d)
+
+
+def add_rule(raw: str, *, scope: str, decision: str = "allow") -> None:
+    """Add a new rule string to the file matching ``scope``. Creates file if missing."""
+    require_confirmed()
+    candidates = [(p, s) for p, s in _settings_files() if s == scope]
+    if not candidates:
+        raise ValueError(f"No file for scope {scope}")
+    path, _ = candidates[0]
+    if path.exists():
+        _backup(path)
+    d = _read_settings(path)
+    if scope == "approved-tools":
+        d.setdefault("approvedTools", []).append(raw)
+    else:
+        d.setdefault("permissions", {}).setdefault(decision, []).append(raw)
+    _write_settings(path, d)
