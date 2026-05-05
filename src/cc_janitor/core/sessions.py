@@ -243,3 +243,34 @@ def enrich_with_indexer_summaries(sessions: list[Session], *, indexer_root: Path
                 ))
                 break  # one .md per session is sufficient
     return sessions
+
+
+def delete_session(s: Session) -> str:
+    """Move a session JSONL plus its per-session subdirectory to trash.
+
+    Both the .jsonl file and any per-session related directory are bundled
+    into a single trash bucket so they can be restored together.
+
+    Raises:
+        NotConfirmedError: when CC_JANITOR_USER_CONFIRMED != "1".
+        FileNotFoundError: when the JSONL no longer exists on disk.
+    """
+    from .safety import require_confirmed, soft_delete
+    require_confirmed()
+    if not s.jsonl_path.exists():
+        raise FileNotFoundError(s.jsonl_path)
+
+    paths = get_paths()
+    paths.ensure_dirs()
+
+    import tempfile, shutil
+    # Build a single bundle directory containing jsonl + related_dirs,
+    # then soft_delete the bundle as one unit.
+    with tempfile.TemporaryDirectory(prefix="ccj-bundle-", dir=paths.home) as td:
+        bundle = Path(td) / s.id
+        bundle.mkdir()
+        shutil.move(str(s.jsonl_path), str(bundle / s.jsonl_path.name))
+        for d in s.related_dirs:
+            if d.exists():
+                shutil.move(str(d), str(bundle / d.name))
+        return soft_delete(bundle, paths=paths)
