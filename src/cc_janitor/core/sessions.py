@@ -221,3 +221,25 @@ def discover_sessions(*, project: str | None = None, refresh: bool = False) -> l
     )
     os.replace(tmp, cache_p)
     return out
+
+
+def enrich_with_indexer_summaries(sessions: list[Session], *, indexer_root: Path) -> list[Session]:
+    """Attach user-side markdown summaries (e.g. from index-session.sh) to sessions.
+
+    Looks in ``indexer_root`` for ``*.md`` files whose stem contains the session
+    id (full or 8-char prefix). Adds one ``SessionSummary(source="user_indexer_md")``
+    per match. Mutates and returns the same list for convenience.
+    """
+    if not indexer_root.exists():
+        return sessions
+    md_files = list(indexer_root.glob("*.md"))
+    for s in sessions:
+        for md in md_files:
+            if s.id in md.stem or s.id[:8] in md.stem:
+                s.summaries.append(SessionSummary(
+                    source="user_indexer_md",
+                    text=md.read_text(encoding="utf-8", errors="replace")[:1000],
+                    md_path=md,
+                ))
+                break  # one .md per session is sufficient
+    return sessions
