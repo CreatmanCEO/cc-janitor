@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import os
+import shutil
+import subprocess
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -7,6 +11,7 @@ from typing import Literal
 
 import frontmatter
 
+from .safety import require_confirmed
 from .state import get_paths
 
 MemoryType = Literal["user", "feedback", "project", "reference", "unknown"]
@@ -141,3 +146,43 @@ def find_duplicate_lines(paths: list[Path], *, min_length: int = 8) -> list[Dupl
                 continue
             seen.setdefault(line, []).append(p)
     return [DuplicateLine(line=k, files=v) for k, v in seen.items() if len(v) >= 2]
+
+
+def archive_memory_file(path: Path) -> Path:
+    require_confirmed()
+    if not path.exists():
+        raise FileNotFoundError(path)
+    archive_root = path.parent / ".archive" / datetime.now(timezone.utc).strftime(
+        "%Y%m%dT%H%M%S"
+    )
+    archive_root.mkdir(parents=True, exist_ok=True)
+    dst = archive_root / path.name
+    shutil.move(str(path), str(dst))
+    return dst
+
+
+def move_memory_type(path: Path, new_type: str) -> None:
+    require_confirmed()
+    if new_type not in KNOWN_TYPES:
+        raise ValueError(f"Unknown type: {new_type}; must be one of {KNOWN_TYPES}")
+    raw = path.read_text(encoding="utf-8")
+    post = frontmatter.loads(raw)
+    post["type"] = new_type
+    path.write_text(frontmatter.dumps(post) + "\n", encoding="utf-8")
+
+
+def _resolve_editor() -> list[str]:
+    for var in ("EDITOR", "VISUAL"):
+        val = os.environ.get(var)
+        if val:
+            return val.split()
+    if sys.platform == "win32":
+        return ["notepad.exe"]
+    return ["vi"]
+
+
+def open_in_editor(path: Path) -> int:
+    require_confirmed()
+    cmd = [*_resolve_editor(), str(path)]
+    result = subprocess.run(cmd)
+    return result.returncode
