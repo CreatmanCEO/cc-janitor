@@ -6,6 +6,7 @@ from .commands.audit import audit_app
 from .commands.context import context_app
 from .commands.doctor import doctor as _doctor
 from .commands.install_hooks import install_hooks as _install_hooks
+from .commands.memory import memory_app
 from .commands.perms import perms_app
 from .commands.session import session_app
 from .commands.trash import trash_app
@@ -38,6 +39,7 @@ def root(
 
 app.add_typer(audit_app, name="audit")
 app.add_typer(context_app, name="context")
+app.add_typer(memory_app, name="memory")
 app.add_typer(perms_app, name="perms")
 app.add_typer(session_app, name="session")
 app.add_typer(trash_app, name="trash")
