@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-09
+
+### Added — Phase 2
+
+#### Memory editor
+- `core/memory.py` — frontmatter parsing with `python-frontmatter`, type
+  classification (user/feedback/project/reference/unknown), discovery,
+  duplicate-line detection, archive, move-type, open-in-editor
+- `cc-janitor memory list/show/edit/archive/move-type/find-duplicates`
+- TUI Memory tab replaces Phase 1 placeholder
+
+#### Reinject hook (closes #29746)
+- `cc-janitor context reinject [--memory] [--claude-md]` writes
+  `~/.cc-janitor/reinject-pending` marker
+- TUI Memory tab `[r]` action queues reinject
+- `install-hooks` now emits Windows PowerShell branch alongside POSIX shell
+
+#### Hooks debugger (closes #11544, #10401, #16564)
+- `core/hooks.py` — discover across 4 settings layers, schema validate,
+  simulate with realistic stdin payloads (9 events), reversible logging
+  wrapper with sentinel-based unwrap
+- `cc-janitor hooks list/show/simulate/enable-logging/disable-logging/validate`
+- TUI Hooks tab replaces Phase 1 placeholder
+
+#### Scheduler
+- `core/schedule.py` — `Scheduler` ABC with `CronScheduler` (Linux/macOS)
+  and `SchtasksScheduler` (Windows) backends
+- 5 templates: perms-prune, trash-cleanup, session-prune,
+  context-audit, backup-rotate
+- Scheduled runs set `CC_JANITOR_USER_CONFIRMED=1` and `CC_JANITOR_SCHEDULED=1`
+- `CC_JANITOR_SCHEDULED=1` activates per-run hard cap (default 200,
+  configurable via `CC_JANITOR_HARD_CAP`)
+- First run after `add` is automatically `--dry-run`; `promote` flips to live
+- `cc-janitor schedule list/add/remove/run/promote`
+- TUI Schedule tab replaces Phase 1 placeholder
+
+#### Documentation
+- 4 new cookbook recipes (memory hygiene, reinject, hook debugging, scheduling)
+- CC_USAGE.md updated with Phase 2 read-only/mutating split
+- i18n keys for memory/hooks/schedule screens (en + ru)
+
+#### Quality
+- 50+ new unit and integration tests across memory, hooks, schedule,
+  reinject, safety hard cap (152 passing total)
+- 3 new TUI snapshot tests
+- Cross-platform branching tested via `monkeypatch.setattr("sys.platform", ...)`
+
 ## [0.1.1] — 2026-05-05
 
 ### Added

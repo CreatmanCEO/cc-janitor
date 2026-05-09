@@ -6,7 +6,7 @@ import subprocess
 import sys
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -88,7 +88,7 @@ def _delete_manifest(name: str) -> None:
 
 
 def _next_run(cron_expr: str) -> datetime:
-    return croniter(cron_expr, datetime.now(timezone.utc)).get_next(datetime)
+    return croniter(cron_expr, datetime.now(UTC)).get_next(datetime)
 
 
 class Scheduler(ABC):
@@ -160,7 +160,7 @@ class SchtasksScheduler(Scheduler):
     def _cron_to_schtasks(self, cron_expr: str) -> list[str]:
         # Minimal mapping: only common templates' cron forms.
         # m h dom mon dow
-        m, h, dom, mon, dow = cron_expr.split()
+        m, h, dom, _mon, dow = cron_expr.split()
         if dow != "*" and dom == "*":
             map_dow = {
                 "0": "SUN",

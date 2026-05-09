@@ -1,5 +1,6 @@
 from pathlib import Path
-from cc_janitor.core.memory import parse_memory_file, classify_type
+
+from cc_janitor.core.memory import classify_type, parse_memory_file
 
 
 def test_parse_with_frontmatter(mock_claude_home):

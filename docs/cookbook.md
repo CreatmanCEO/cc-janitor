@@ -1,6 +1,6 @@
 # Cookbook
 
-Six task-oriented recipes for everyday cc-janitor use. Each recipe follows
+Ten task-oriented recipes for everyday cc-janitor use. Each recipe follows
 the same shape: **Problem → Command → Expected output → Next step.**
 
 ---
@@ -123,3 +123,108 @@ existing files; renames to `<orig>.restored-<ts>` if a collision occurs).
 
 **Next step:** `cc-janitor session show <id>` to verify content, then
 re-open it in Claude Code via the IDE's session picker.
+
+---
+
+## 7. Memory hygiene — promote feedback to user-level
+
+**Problem:** Auto-memory has captured a bunch of `feedback_*.md` files inside
+a project that you'd actually like to apply globally as `user`-type memory.
+
+**Command:**
+
+```bash
+cc-janitor memory list --type feedback
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor memory move-type feedback_no_emojis.md user
+```
+
+**Expected output:** Table of feedback files (path, type, size, last-modified),
+then a confirmation that the file was moved to the user-level memory dir
+with frontmatter `type` rewritten.
+
+**Next step:** Run `cc-janitor memory find-duplicates` afterwards — promoted
+feedback can collide with existing user-level memory; the duplicate-line
+detector flags overlapping lines across files so you can dedupe by hand.
+
+---
+
+## 8. My memory edits don't take effect (reinject)
+
+**Problem:** You edited `~/.claude/CLAUDE.md` mid-session but Claude Code
+keeps quoting the old contents — it doesn't re-read CLAUDE.md until a new
+session starts (upstream issue #29746).
+
+**Command:**
+
+```bash
+# One-time setup — installs a PreToolUse hook that emits a system-reminder
+# whenever the reinject-pending marker exists.
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor install-hooks
+
+# Whenever you want Claude to re-read memory in the current session:
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor context reinject
+```
+
+**Expected output:** `install-hooks` writes a hook entry into
+`~/.claude/settings.json` (POSIX shell on Linux/macOS, PowerShell on
+Windows). `context reinject` writes `~/.cc-janitor/reinject-pending`. The
+next tool call Claude makes triggers the hook, which emits a
+`<system-reminder>` block citing the freshly-read memory.
+
+**Next step:** Confirm by asking Claude something that depends on the new
+content. For one-shot manual reinjection without the hook, you can also
+press `[r]` on the Memory tab in the TUI.
+
+---
+
+## 9. A hook isn't firing — debug it
+
+**Problem:** You configured a `PreToolUse` hook for `Bash` and it doesn't
+seem to run. Claude Code's own logs are vague (#11544, #10401, #16564).
+
+**Command:**
+
+```bash
+cc-janitor hooks list
+cc-janitor hooks validate                 # catches missing-hooks-array, empty command
+cc-janitor hooks simulate PreToolUse Bash # runs your hook with a realistic payload
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor hooks enable-logging PreToolUse Bash
+```
+
+**Expected output:** `list` shows every hook discovered across the 4
+settings layers (user, project, project-local, enterprise) with source
+attribution. `validate` returns schema errors. `simulate` runs the actual
+hook command with a real stdin payload and prints exit code + duration.
+`enable-logging` wraps the hook in a reversible logger that writes
+`~/.cc-janitor/hooks.log` for every invocation.
+
+**Next step:** Trigger the matching tool inside Claude Code and `tail
+~/.cc-janitor/hooks.log`. When done, run `cc-janitor hooks disable-logging
+PreToolUse Bash` — the wrapper unwraps cleanly via a sentinel marker.
+
+---
+
+## 10. Schedule a weekly cleanup (dry-run first)
+
+**Problem:** You want `perms-prune` to run weekly without remembering to do
+it, but you don't trust an unattended process to delete things on day one.
+
+**Command:**
+
+```bash
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor schedule add perms-prune
+# wait for the first scheduled run — it executes in --dry-run mode automatically
+cc-janitor schedule list                  # status: "dry-run pending"
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor schedule promote cc-janitor-perms-prune
+```
+
+**Expected output:** `add` registers a cron entry on Linux/macOS or a
+schtasks task on Windows, named `cc-janitor-perms-prune`. The first run is
+forced to `--dry-run` regardless of template. `promote` flips it to a live
+run. Scheduled runs export `CC_JANITOR_USER_CONFIRMED=1` and
+`CC_JANITOR_SCHEDULED=1`; the latter activates a hard cap (default 200
+items per run) so a runaway template can't wipe a whole tree.
+
+**Next step:** Inspect the dry-run output via the audit log:
+`cc-janitor audit list --cmd schedule-run --json`. Adjust `CC_JANITOR_HARD_CAP`
+if your project legitimately needs more than 200 deletions per run.

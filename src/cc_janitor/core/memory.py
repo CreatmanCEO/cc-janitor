@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -79,7 +79,7 @@ def parse_memory_file(path: Path, *, project: str | None = None,
         body=body,
         size_bytes=stat.st_size,
         line_count=raw.count("\n") + (0 if raw.endswith("\n") else 1),
-        last_modified=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
+        last_modified=datetime.fromtimestamp(stat.st_mtime, tz=UTC),
         project=project,
         is_archived=is_archived,
     )
@@ -160,7 +160,7 @@ def archive_memory_file(path: Path) -> Path:
     require_confirmed()
     if not path.exists():
         raise FileNotFoundError(path)
-    archive_root = path.parent / ".archive" / datetime.now(timezone.utc).strftime(
+    archive_root = path.parent / ".archive" / datetime.now(UTC).strftime(
         "%Y%m%dT%H%M%S"
     )
     archive_root.mkdir(parents=True, exist_ok=True)

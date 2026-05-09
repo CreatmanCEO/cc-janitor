@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import subprocess
 import sys
@@ -8,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from .safety import require_confirmed
 from .state import get_paths
 
 HookEvent = str  # "PreToolUse", "PostToolUse", ...
@@ -232,10 +234,6 @@ def simulate_hook(
     except subprocess.TimeoutExpired:
         return HookRunResult(124, "", f"timeout after {timeout}s", timeout * 1000)
 
-
-import base64
-
-from .safety import require_confirmed
 
 SENTINEL = "cc-janitor-original:"
 
