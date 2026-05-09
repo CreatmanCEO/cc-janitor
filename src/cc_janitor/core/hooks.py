@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -149,3 +152,82 @@ def validate_hooks() -> list[HookIssue]:
                             )
                         )
     return issues
+
+
+@dataclass
+class HookRunResult:
+    exit_code: int
+    stdout: str
+    stderr: str
+    duration_ms: int
+
+
+STDIN_TEMPLATES: dict[str, dict] = {
+    "PreToolUse": {
+        "session_id": "sim-001",
+        "transcript_path": "/tmp/x.jsonl",
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": "echo hi"},
+    },
+    "PostToolUse": {
+        "session_id": "sim-001",
+        "transcript_path": "/tmp/x.jsonl",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": "echo hi"},
+        "tool_response": {"stdout": "hi"},
+    },
+    "UserPromptSubmit": {
+        "session_id": "sim-001",
+        "hook_event_name": "UserPromptSubmit",
+        "user_prompt": "hello",
+    },
+    "Stop": {"session_id": "sim-001", "hook_event_name": "Stop"},
+    "SubagentStop": {"session_id": "sim-001", "hook_event_name": "SubagentStop"},
+    "Notification": {
+        "session_id": "sim-001",
+        "hook_event_name": "Notification",
+        "message": "test",
+    },
+    "SessionStart": {"session_id": "sim-001", "hook_event_name": "SessionStart"},
+    "SessionEnd": {"session_id": "sim-001", "hook_event_name": "SessionEnd"},
+    "PreCompact": {"session_id": "sim-001", "hook_event_name": "PreCompact"},
+}
+
+
+def build_stdin_payload(event: str, **overrides) -> str:
+    tpl = dict(STDIN_TEMPLATES.get(event, {"hook_event_name": event}))
+    tpl.update(overrides)
+    return json.dumps(tpl, indent=2)
+
+
+def simulate_hook(
+    command: str,
+    *,
+    event: str,
+    matcher: str = "*",
+    timeout: int = 30,
+    stdin_override: str | None = None,
+) -> HookRunResult:
+    payload = stdin_override or build_stdin_payload(event, tool_name=matcher)
+    if sys.platform == "win32":
+        args = ["powershell.exe", "-NoProfile", "-Command", command]
+    else:
+        args = ["sh", "-c", command]
+    start = time.perf_counter()
+    try:
+        proc = subprocess.run(
+            args,
+            input=payload.encode("utf-8"),
+            capture_output=True,
+            timeout=timeout,
+        )
+        return HookRunResult(
+            exit_code=proc.returncode,
+            stdout=proc.stdout.decode("utf-8", errors="replace"),
+            stderr=proc.stderr.decode("utf-8", errors="replace"),
+            duration_ms=int((time.perf_counter() - start) * 1000),
+        )
+    except subprocess.TimeoutExpired:
+        return HookRunResult(124, "", f"timeout after {timeout}s", timeout * 1000)
