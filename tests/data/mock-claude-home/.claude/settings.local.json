@@ -6,5 +6,10 @@
       "Bash(npm *)",
       "Bash(ssh user@old-host:*)"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {"command": "echo bye"}
+    ]
   }
 }
