@@ -36,7 +36,8 @@ class CcJanitorApp(App):
                 from .screens.memory_screen import MemoryScreen
                 yield MemoryScreen()
             with TabPane("Hooks", id="hooks"):
-                yield Static("Hooks screen — TODO")
+                from .screens.hooks_screen import HooksScreen
+                yield HooksScreen()
             with TabPane("Schedule", id="schedule"):
                 yield Static("Schedule screen — TODO")
             with TabPane("Audit", id="audit"):
