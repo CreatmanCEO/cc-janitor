@@ -122,10 +122,18 @@ def discover_memory_files(
                 archived = ".archive" in f.parts
                 if archived and not include_archived:
                     continue
-                out.append(parse_memory_file(f, project=proj_dir.name, is_archived=archived))
+                try:
+                    out.append(
+                        parse_memory_file(f, project=proj_dir.name, is_archived=archived)
+                    )
+                except Exception:
+                    continue
     user_md = _global_user_claude_md()
     if user_md.exists():
-        out.append(parse_memory_file(user_md, project=None))
+        try:
+            out.append(parse_memory_file(user_md, project=None))
+        except Exception:
+            pass
     if type_filter:
         out = [m for m in out if m.type == type_filter]
     return out
