@@ -9,6 +9,7 @@ from .commands.hooks import hooks_app
 from .commands.install_hooks import install_hooks as _install_hooks
 from .commands.memory import memory_app
 from .commands.perms import perms_app
+from .commands.schedule import schedule_app
 from .commands.session import session_app
 from .commands.trash import trash_app
 
@@ -43,6 +44,7 @@ app.add_typer(context_app, name="context")
 app.add_typer(hooks_app, name="hooks")
 app.add_typer(memory_app, name="memory")
 app.add_typer(perms_app, name="perms")
+app.add_typer(schedule_app, name="schedule")
 app.add_typer(session_app, name="session")
 app.add_typer(trash_app, name="trash")
 app.command("doctor", help="Health check")(_doctor)
