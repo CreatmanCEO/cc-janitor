@@ -5,6 +5,8 @@ from pathlib import Path
 import typer
 
 from ...core.context import context_cost
+from ...core.reinject import queue_reinject
+from .._audit import audit_action
 
 context_app = typer.Typer(help="Inspect context cost (CLAUDE.md, memory, skills)")
 
@@ -50,3 +52,14 @@ def find_duplicates(project: Path = typer.Option(Path.cwd(), "--project")) -> No
         typer.echo(f"\n{len(unique_paths)}x {line[:80]}…")
         for p in unique_paths:
             typer.echo(f"  - {p}")
+
+
+@context_app.command("reinject")
+def reinject(
+    memory: bool = typer.Option(True, "--memory/--no-memory"),
+    claude_md: bool = typer.Option(True, "--claude-md/--no-claude-md"),
+) -> None:
+    """Queue a context reinject — fires on next Claude Code tool call."""
+    with audit_action("context reinject", [f"memory={memory}", f"claude_md={claude_md}"]):
+        marker = queue_reinject(memory=memory, claude_md=claude_md)
+    typer.echo(f"reinject queued: {marker}")

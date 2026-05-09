@@ -1,6 +1,6 @@
 [project]
 name = "cc-janitor"
-version = "0.1.1"
+version = "0.2.0"
 description = "Tidy up your Claude Code environment — sessions, permissions, context, hooks, schedule."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,6 +26,8 @@ dependencies = [
     "python-rapidjson>=1.20",
     "tomlkit>=0.13",
     "platformdirs>=4",
+    "python-frontmatter>=1.1",
+    "croniter>=2",
 ]
 
 [project.optional-dependencies]

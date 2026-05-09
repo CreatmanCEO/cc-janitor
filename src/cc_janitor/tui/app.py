@@ -33,11 +33,14 @@ class CcJanitorApp(App):
                 from .screens.context_screen import ContextScreen
                 yield ContextScreen()
             with TabPane("Memory", id="memory"):
-                yield Static("Memory screen — TODO")
+                from .screens.memory_screen import MemoryScreen
+                yield MemoryScreen()
             with TabPane("Hooks", id="hooks"):
-                yield Static("Hooks screen — TODO")
+                from .screens.hooks_screen import HooksScreen
+                yield HooksScreen()
             with TabPane("Schedule", id="schedule"):
-                yield Static("Schedule screen — TODO")
+                from .screens.schedule_screen import ScheduleScreen
+                yield ScheduleScreen()
             with TabPane("Audit", id="audit"):
                 yield Static("Audit screen — TODO")
         yield Footer()

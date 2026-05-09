@@ -22,6 +22,17 @@ cc-janitor perms list [--stale] [--dup]
 cc-janitor context show
 cc-janitor context cost
 cc-janitor context find-duplicates
+cc-janitor memory list [--type <t>]
+cc-janitor memory show <path>
+cc-janitor memory find-duplicates
+cc-janitor hooks list
+cc-janitor hooks show <event> <matcher>
+cc-janitor hooks simulate <event> <matcher>
+cc-janitor hooks validate
+cc-janitor schedule list
+cc-janitor schedule audit
+cc-janitor audit list [--since][--cmd][--failed][--json]
+cc-janitor trash list
 ```
 
 ## Mutating commands (require user confirmation)
@@ -33,6 +44,20 @@ cc-janitor perms dedupe
 cc-janitor perms prune --older-than 90d
 cc-janitor perms remove "<rule>" --from <path>
 cc-janitor perms add "<rule>" --to <scope>
+cc-janitor memory edit <path>
+cc-janitor memory archive <path>
+cc-janitor memory move-type <path> <type>
+cc-janitor memory delete <path>
+cc-janitor context reinject [--memory] [--claude-md]
+cc-janitor hooks enable-logging <event> <matcher>
+cc-janitor hooks disable-logging <event> <matcher>
+cc-janitor hooks fix-windows-env
+cc-janitor schedule add <template>
+cc-janitor schedule remove <name>
+cc-janitor schedule run <name>
+cc-janitor schedule promote <name>
+cc-janitor trash restore <id>
+cc-janitor trash empty
 ```
 
 For each, prefix the command with `CC_JANITOR_USER_CONFIRMED=1 ` ONLY when the
