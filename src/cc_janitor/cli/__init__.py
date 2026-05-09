@@ -10,7 +10,7 @@ from .commands.perms import perms_app
 from .commands.session import session_app
 from .commands.trash import trash_app
 
-__VERSION__ = "0.1.1"
+__VERSION__ = "0.2.0.dev0"
 
 app = typer.Typer(no_args_is_help=False, help="cc-janitor — Tidy Claude Code")
 
