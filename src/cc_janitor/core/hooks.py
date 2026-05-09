@@ -231,3 +231,74 @@ def simulate_hook(
         )
     except subprocess.TimeoutExpired:
         return HookRunResult(124, "", f"timeout after {timeout}s", timeout * 1000)
+
+
+import base64
+
+from .safety import require_confirmed
+
+SENTINEL = "cc-janitor-original:"
+
+
+def _log_path_for(event: str) -> Path:
+    return get_paths().hooks_log / f"{event}.log"
+
+
+def _wrap_posix(orig: str, log_p: Path) -> str:
+    encoded = base64.b64encode(orig.encode("utf-8")).decode("ascii")
+    return f"# {SENTINEL} {encoded}\n({orig}) 2>&1 | tee -a '{log_p.as_posix()}'"
+
+
+def _wrap_powershell(orig: str, log_p: Path) -> str:
+    encoded = base64.b64encode(orig.encode("utf-8")).decode("ascii")
+    return (
+        f"# {SENTINEL} {encoded}\n"
+        f"({orig}) 2>&1 | Tee-Object -FilePath '{log_p.as_posix()}' -Append"
+    )
+
+
+def _unwrap(wrapped: str) -> str | None:
+    for line in wrapped.splitlines():
+        if SENTINEL in line:
+            encoded = line.split(SENTINEL, 1)[1].strip()
+            try:
+                return base64.b64decode(encoded.encode("ascii")).decode("utf-8")
+            except Exception:
+                return None
+    return None
+
+
+def _modify_hook_command(event: str, matcher: str, transform) -> Path:
+    require_confirmed()
+    settings = get_paths().home.parent / ".claude" / "settings.json"
+    data = (
+        json.loads(settings.read_text(encoding="utf-8"))
+        if settings.exists()
+        else {}
+    )
+    pre = data.setdefault("hooks", {}).setdefault(event, [])
+    for entry in pre:
+        if entry.get("matcher") != matcher:
+            continue
+        for h in entry.get("hooks", []):
+            cmd = h.get("command")
+            if not cmd:
+                continue
+            new_cmd = transform(cmd)
+            if new_cmd is not None:
+                h["command"] = new_cmd
+    settings.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    return settings
+
+
+def enable_logging(event: str, *, matcher: str = "*") -> Path:
+    log_p = _log_path_for(event)
+    log_p.parent.mkdir(parents=True, exist_ok=True)
+    wrap = _wrap_powershell if sys.platform == "win32" else _wrap_posix
+    return _modify_hook_command(event, matcher, lambda cmd: wrap(cmd, log_p))
+
+
+def disable_logging(event: str, *, matcher: str = "*") -> Path:
+    return _modify_hook_command(event, matcher, _unwrap)
