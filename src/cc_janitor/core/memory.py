@@ -7,6 +7,8 @@ from typing import Literal
 
 import frontmatter
 
+from .state import get_paths
+
 MemoryType = Literal["user", "feedback", "project", "reference", "unknown"]
 KNOWN_TYPES: tuple[MemoryType, ...] = ("user", "feedback", "project", "reference")
 
@@ -76,3 +78,66 @@ def parse_memory_file(path: Path, *, project: str | None = None,
         project=project,
         is_archived=is_archived,
     )
+
+
+def _claude_projects_root() -> Path:
+    paths = get_paths()
+    home = paths.home.parent  # ~
+    return home / ".claude" / "projects"
+
+
+def _global_user_claude_md() -> Path:
+    return get_paths().home.parent / ".claude" / "CLAUDE.md"
+
+
+@dataclass
+class DuplicateLine:
+    line: str
+    files: list[Path]
+
+
+def discover_memory_files(
+    *,
+    type_filter: str | None = None,
+    project: str | None = None,
+    include_archived: bool = False,
+) -> list[MemoryFile]:
+    out: list[MemoryFile] = []
+    root = _claude_projects_root()
+    if root.exists():
+        for proj_dir in root.iterdir():
+            if not proj_dir.is_dir():
+                continue
+            if project and proj_dir.name != project:
+                continue
+            mem_dir = proj_dir / "memory"
+            if not mem_dir.exists():
+                continue
+            for f in mem_dir.rglob("*.md"):
+                archived = ".archive" in f.parts
+                if archived and not include_archived:
+                    continue
+                out.append(parse_memory_file(f, project=proj_dir.name, is_archived=archived))
+    user_md = _global_user_claude_md()
+    if user_md.exists():
+        out.append(parse_memory_file(user_md, project=None))
+    if type_filter:
+        out = [m for m in out if m.type == type_filter]
+    return out
+
+
+def find_duplicate_lines(paths: list[Path], *, min_length: int = 8) -> list[DuplicateLine]:
+    seen: dict[str, list[Path]] = {}
+    for p in paths:
+        try:
+            text = p.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if len(line) < min_length:
+                continue
+            if line.startswith("#"):
+                continue
+            seen.setdefault(line, []).append(p)
+    return [DuplicateLine(line=k, files=v) for k, v in seen.items() if len(v) >= 2]
