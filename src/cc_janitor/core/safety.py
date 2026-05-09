@@ -15,6 +15,30 @@ class NotConfirmedError(RuntimeError):
     """Raised when a mutation is attempted without CC_JANITOR_USER_CONFIRMED=1."""
 
 
+class RunawayCapError(RuntimeError):
+    """Scheduled run exceeded the hard delete cap."""
+
+
+_run_counter = 0
+
+
+def reset_run_counter() -> None:
+    global _run_counter
+    _run_counter = 0
+
+
+def _bump_and_check_cap() -> None:
+    global _run_counter
+    if os.environ.get("CC_JANITOR_SCHEDULED") != "1":
+        return
+    cap = int(os.environ.get("CC_JANITOR_HARD_CAP", "200"))
+    _run_counter += 1
+    if _run_counter > cap:
+        raise RunawayCapError(
+            f"scheduled run exceeded hard cap of {cap} deletions"
+        )
+
+
 def is_confirmed() -> bool:
     return os.environ.get("CC_JANITOR_USER_CONFIRMED") == "1"
 
@@ -48,6 +72,7 @@ def _trash_id(now: datetime) -> str:
 
 def soft_delete(src: Path, *, paths: Paths) -> str:
     paths.ensure_dirs()
+    _bump_and_check_cap()
     now = datetime.now(UTC)
     tid = _trash_id(now)
     bucket = paths.trash / tid
