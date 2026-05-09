@@ -39,7 +39,8 @@ class CcJanitorApp(App):
                 from .screens.hooks_screen import HooksScreen
                 yield HooksScreen()
             with TabPane("Schedule", id="schedule"):
-                yield Static("Schedule screen — TODO")
+                from .screens.schedule_screen import ScheduleScreen
+                yield ScheduleScreen()
             with TabPane("Audit", id="audit"):
                 yield Static("Audit screen — TODO")
         yield Footer()
