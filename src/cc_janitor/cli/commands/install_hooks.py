@@ -1,27 +1,45 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import typer
 
 from ...core.safety import require_confirmed
 
+REINJECT_PAYLOAD = (
+    '{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
+    '"additionalContext":"cc-janitor-reinject: please re-read MEMORY.md and CLAUDE.md"}}'
+)
+
+
+def _build_hook_command(platform: str) -> str:
+    if platform == "win32":
+        ps = (
+            "if (Test-Path \"$env:USERPROFILE\\.cc-janitor\\reinject-pending\") {"
+            " Remove-Item \"$env:USERPROFILE\\.cc-janitor\\reinject-pending\";"
+            f" '{REINJECT_PAYLOAD}'"
+            " }"
+        )
+        return f'powershell.exe -NoProfile -Command "{ps}"'
+    return (
+        "test -f ~/.cc-janitor/reinject-pending && "
+        "{ rm ~/.cc-janitor/reinject-pending; "
+        f"echo '{REINJECT_PAYLOAD}'; }} || true"
+    )
+
 
 def install_hooks() -> None:
-    """Install the reinject PreToolUse hook (idempotent)."""
+    """Install the reinject PreToolUse hook (idempotent, cross-platform)."""
     require_confirmed()
     settings = Path.home() / ".claude" / "settings.json"
     settings.parent.mkdir(parents=True, exist_ok=True)
-    if settings.exists():
-        d = json.loads(settings.read_text(encoding="utf-8"))
-    else:
-        d = {}
+    d = json.loads(settings.read_text(encoding="utf-8")) if settings.exists() else {}
 
     hooks = d.setdefault("hooks", {})
     pre = hooks.setdefault("PreToolUse", [])
 
-    # idempotency: skip if cc-janitor reinject hook already present
     sentinel = "cc-janitor-reinject"
     for entry in pre:
         for h in entry.get("hooks", []):
@@ -29,19 +47,11 @@ def install_hooks() -> None:
                 typer.echo("reinject hook already installed — nothing to do")
                 return
 
-    reinject_payload = (
-        '{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
-        '"additionalContext":"cc-janitor-reinject: please re-read MEMORY.md and CLAUDE.md"}}'
-    )
     pre.append({
         "matcher": "*",
         "hooks": [{
             "type": "command",
-            "command": (
-                "test -f ~/.cc-janitor/reinject-pending && "
-                "{ rm ~/.cc-janitor/reinject-pending; "
-                f"echo '{reinject_payload}'; }} || true"
-            ),
+            "command": _build_hook_command(sys.platform),
             "timeout": 5,
         }],
     })
