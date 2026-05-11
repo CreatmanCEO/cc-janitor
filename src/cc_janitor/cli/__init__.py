@@ -13,6 +13,7 @@ from .commands.perms import perms_app
 from .commands.schedule import schedule_app
 from .commands.session import session_app
 from .commands.trash import trash_app
+from .commands.watch import watch_app
 
 __VERSION__ = "0.3.0.dev0"
 
@@ -49,5 +50,6 @@ app.add_typer(perms_app, name="perms")
 app.add_typer(schedule_app, name="schedule")
 app.add_typer(session_app, name="session")
 app.add_typer(trash_app, name="trash")
+app.add_typer(watch_app, name="watch")
 app.command("doctor", help="Health check")(_doctor)
 app.command("install-hooks", help="Install reinject PreToolUse hook")(_install_hooks)
