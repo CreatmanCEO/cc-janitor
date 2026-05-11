@@ -29,8 +29,12 @@ def list_cmd(
     type_filter: str | None = typer.Option(None, "--type"),
     project: str | None = typer.Option(None, "--project"),
     json_out: bool = typer.Option(False, "--json"),
+    scope: str = typer.Option(
+        None, "--scope",
+        help="Filter by monorepo scope: real|nested|junk|real+nested|all",
+    ),
 ):
-    items = discover_memory_files(type_filter=type_filter, project=project)
+    items = discover_memory_files(type_filter=type_filter, project=project, scope=scope)
     if json_out:
         data = [
             {

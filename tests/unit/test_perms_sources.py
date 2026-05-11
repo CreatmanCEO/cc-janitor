@@ -35,5 +35,6 @@ def test_discover_rules_handles_missing_files(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.setenv("CC_JANITOR_HOME", str(tmp_path / ".cc-janitor"))
+    monkeypatch.chdir(tmp_path)
     from cc_janitor.core.permissions import discover_rules
     assert discover_rules() == []

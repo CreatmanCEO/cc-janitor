@@ -18,7 +18,7 @@ from .commands.stats import stats_app
 from .commands.trash import trash_app
 from .commands.watch import watch_app
 
-__VERSION__ = "0.3.0"
+__VERSION__ = "0.3.1"
 
 app = typer.Typer(no_args_is_help=False, help="cc-janitor — Tidy Claude Code")
 

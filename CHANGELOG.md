@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-05-11
+
+### Fixed
+
+- **TUI Source-filter dropdown now actually filters.** Previously (0.3.0) the
+  Source-filter `Select` widget on Permissions, Hooks, and Memory tabs was
+  cosmetic — changing the value triggered a reload but the underlying
+  `discover_*()` functions ignored scope. Now:
+  - `core.permissions.discover_rules(scope=...)` accepts
+    `"real" | "nested" | "junk" | "real+nested" | "all" | <path>` (or `None`)
+  - `core.hooks.discover_hooks(scope=...)` (+ alias `discover_hooks_files`) ditto
+  - `core.memory.discover_memory_files(scope=...)` ditto
+  - All three also now walk monorepo `.claude/` locations discovered under
+    `cwd()` so nested/junk sources can actually be surfaced.
+  - Source files are classified by enclosing `.claude/` directory via
+    `core.monorepo.classify_location()`; canonical user paths
+    (`~/.claude/...`) are treated as `"real"`.
+
+### Added
+
+- CLI parity: `cc-janitor perms list --scope`, `cc-janitor hooks list --scope`,
+  `cc-janitor memory list --scope` flags.
+
 ## [0.3.0] — 2026-05-11
 
 ### Added — Phase 3

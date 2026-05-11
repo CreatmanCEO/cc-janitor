@@ -11,8 +11,41 @@ from typing import Literal
 
 import frontmatter
 
+from .monorepo import classify_location, discover_locations
 from .safety import require_confirmed
 from .state import get_paths
+
+
+def _normalize_scope(scope: str | None) -> tuple[str, ...] | None:
+    if scope is None or scope == "all":
+        return None
+    if scope == "real+nested":
+        return ("real", "nested")
+    if scope in ("real", "nested", "junk"):
+        return (scope,)
+    return None
+
+
+def _classify_memory_path(path: Path) -> str:
+    """Classify a memory file by its enclosing .claude/ directory."""
+    claude_dir = None
+    for parent in path.parents:
+        if parent.name == ".claude":
+            claude_dir = parent
+            break
+    if claude_dir is None:
+        return "real"
+    home = Path.home()
+    try:
+        rel = claude_dir.relative_to(home)
+        if rel.parts and rel.parts[0] == ".claude":
+            return "real"
+    except ValueError:
+        pass
+    try:
+        return classify_location(claude_dir).scope_kind
+    except Exception:
+        return "real"
 
 MemoryType = Literal["user", "feedback", "project", "reference", "unknown"]
 KNOWN_TYPES: tuple[MemoryType, ...] = ("user", "feedback", "project", "reference")
@@ -106,6 +139,7 @@ def discover_memory_files(
     type_filter: str | None = None,
     project: str | None = None,
     include_archived: bool = False,
+    scope: str | None = None,
 ) -> list[MemoryFile]:
     out: list[MemoryFile] = []
     root = _claude_projects_root()
@@ -134,8 +168,57 @@ def discover_memory_files(
             out.append(parse_memory_file(user_md, project=None))
         except Exception:
             pass
+    # Walk monorepo .claude/ locations under cwd for additional memory files
+    try:
+        locs = discover_locations(include_junk=True)
+    except Exception:
+        locs = []
+    seen_paths = {m.path for m in out}
+    for loc in locs:
+        # CLAUDE.md at .claude/CLAUDE.md
+        cmd = loc.path / "CLAUDE.md"
+        if cmd.exists() and cmd not in seen_paths:
+            try:
+                out.append(parse_memory_file(cmd, project=loc.parent.name))
+                seen_paths.add(cmd)
+            except Exception:
+                pass
+        # memory/*.md within nested .claude/
+        mem_dir = loc.path / "memory"
+        if mem_dir.exists():
+            for f in mem_dir.rglob("*.md"):
+                archived = ".archive" in f.parts
+                if archived and not include_archived:
+                    continue
+                if f in seen_paths:
+                    continue
+                try:
+                    out.append(
+                        parse_memory_file(
+                            f, project=loc.parent.name, is_archived=archived
+                        )
+                    )
+                    seen_paths.add(f)
+                except Exception:
+                    continue
+
     if type_filter:
         out = [m for m in out if m.type == type_filter]
+
+    if scope is not None and scope != "all":
+        allowed = _normalize_scope(scope)
+        if allowed is not None:
+            out = [m for m in out if _classify_memory_path(m.path) in allowed]
+        else:
+            try:
+                target = Path(scope).resolve()
+                out = [
+                    m for m in out
+                    if target in m.path.resolve().parents
+                    or m.path.resolve() == target
+                ]
+            except (OSError, ValueError):
+                pass
     return out
 
 

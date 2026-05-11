@@ -9,8 +9,40 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from .monorepo import classify_location, discover_locations
 from .safety import require_confirmed
 from .state import get_paths
+
+
+def _normalize_scope(scope: str | None) -> tuple[str, ...] | None:
+    if scope is None or scope == "all":
+        return None
+    if scope == "real+nested":
+        return ("real", "nested")
+    if scope in ("real", "nested", "junk"):
+        return (scope,)
+    return None
+
+
+def _classify_source_path(path: Path) -> str:
+    claude_dir = None
+    for parent in path.parents:
+        if parent.name == ".claude":
+            claude_dir = parent
+            break
+    if claude_dir is None:
+        return "real"
+    home = Path.home()
+    try:
+        rel = claude_dir.relative_to(home)
+        if rel.parts and rel.parts[0] == ".claude":
+            return "real"
+    except ValueError:
+        pass
+    try:
+        return classify_location(claude_dir).scope_kind
+    except Exception:
+        return "real"
 
 HookEvent = str  # "PreToolUse", "PostToolUse", ...
 HookScope = Literal["user", "user-local", "project", "project-local", "managed"]
@@ -62,9 +94,32 @@ def _load(path: Path) -> dict | None:
         return None
 
 
-def discover_hooks() -> list[HookEntry]:
+def _monorepo_settings_sources() -> list[tuple[Path, HookScope]]:
+    out: list[tuple[Path, HookScope]] = []
+    try:
+        locs = discover_locations(include_junk=True)
+    except Exception:
+        return out
+    for loc in locs:
+        out.append((loc.path / "settings.json", "project"))
+        out.append((loc.path / "settings.local.json", "project-local"))
+    return out
+
+
+def discover_hooks(scope: str | None = None) -> list[HookEntry]:
+    """Discover hook entries across all sources.
+
+    ``scope`` filters by enclosing .claude/ classification:
+    ``"real" | "nested" | "junk" | "real+nested" | "all"`` or ``None`` for all.
+    """
     out: list[HookEntry] = []
-    for path, scope in _settings_sources():
+    sources: list[tuple[Path, HookScope]] = list(_settings_sources())
+    seen = {p for p, _ in sources}
+    for p, s in _monorepo_settings_sources():
+        if p not in seen:
+            sources.append((p, s))
+            seen.add(p)
+    for path, scope_label in sources:
         data = _load(path)
         if not isinstance(data, dict):
             continue
@@ -94,13 +149,34 @@ def discover_hooks() -> list[HookEntry]:
                             url=h.get("url"),
                             timeout=h.get("timeout"),
                             source_path=path,
-                            source_scope=scope,
+                            source_scope=scope_label,
                             has_logging_wrapper=bool(
                                 cmd and "cc-janitor/hooks-log/" in cmd
                             ),
                         )
                     )
+
+    if scope is None or scope == "all":
+        return out
+    allowed = _normalize_scope(scope)
+    if allowed is not None:
+        out = [h for h in out if _classify_source_path(h.source_path) in allowed]
+    else:
+        try:
+            target = Path(scope).resolve()
+            out = [
+                h for h in out
+                if target in h.source_path.resolve().parents
+                or h.source_path.resolve() == target
+            ]
+        except (OSError, ValueError):
+            pass
     return out
+
+
+# Backward-compat alias requested in spec
+def discover_hooks_files(scope: str | None = None) -> list[HookEntry]:
+    return discover_hooks(scope=scope)
 
 
 def validate_hooks() -> list[HookIssue]:
