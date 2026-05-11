@@ -49,7 +49,9 @@ class HooksScreen(Widget):
         table.clear(columns=True)
         table.add_columns("Event", "Matcher", "Type", "Command", "Scope", "Logged")
         table.cursor_type = "row"
-        self._hooks: list[HookEntry] = discover_hooks()
+        self._hooks: list[HookEntry] = discover_hooks(
+            scope=getattr(self, "_source_filter", None)
+        )
         for idx, h in enumerate(self._hooks):
             cmd_preview = (h.command or h.url or "")[:60]
             table.add_row(

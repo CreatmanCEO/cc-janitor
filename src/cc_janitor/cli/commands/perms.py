@@ -16,8 +16,8 @@ from .._audit import audit_action
 perms_app = typer.Typer(help="Audit and prune permission rules")
 
 
-def _rules_with_usage():
-    return analyze_usage(discover_rules(), discover_sessions())
+def _rules_with_usage(scope: str | None = None):
+    return analyze_usage(discover_rules(scope=scope), discover_sessions())
 
 
 @perms_app.command("audit")
@@ -41,8 +41,12 @@ def list_(
     stale: bool = typer.Option(False, "--stale"),
     dup: bool = typer.Option(False, "--dup"),
     source: str = typer.Option(None, "--source"),
+    scope: str = typer.Option(
+        None, "--scope",
+        help="Filter by monorepo scope: real|nested|junk|real+nested|all",
+    ),
 ) -> None:
-    rules = _rules_with_usage()
+    rules = _rules_with_usage(scope=scope)
     if source:
         rules = [r for r in rules if r.source.scope == source]
     if stale:

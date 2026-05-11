@@ -21,8 +21,12 @@ hooks_app = typer.Typer(no_args_is_help=True, help="Hook discovery/debugger")
 def list_cmd(
     event: str | None = typer.Option(None, "--event"),
     json_out: bool = typer.Option(False, "--json"),
+    scope: str = typer.Option(
+        None, "--scope",
+        help="Filter by monorepo scope: real|nested|junk|real+nested|all",
+    ),
 ):
-    items = discover_hooks()
+    items = discover_hooks(scope=scope)
     if event:
         items = [e for e in items if e.event == event]
     if json_out:

@@ -40,7 +40,10 @@ class PermsScreen(Widget):
         self._reload()
 
     def _reload(self) -> None:
-        rules = analyze_usage(discover_rules(), discover_sessions())
+        rules = analyze_usage(
+            discover_rules(scope=getattr(self, "_source_filter", None)),
+            discover_sessions(),
+        )
         dups = find_duplicates(rules)
         dup_set = {id(r) for d in dups for r in d.rules}
 

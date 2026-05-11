@@ -51,7 +51,9 @@ class MemoryScreen(Widget):
         table.clear(columns=True)
         table.add_columns("Type", "Size", "Modified", "Name", "Project")
         table.cursor_type = "row"
-        self._items = discover_memory_files()
+        self._items = discover_memory_files(
+            scope=getattr(self, "_source_filter", None)
+        )
         for idx, m in enumerate(self._items):
             table.add_row(
                 m.type,

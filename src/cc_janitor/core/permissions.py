@@ -10,10 +10,50 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
+from .monorepo import classify_location, discover_locations
 from .safety import require_confirmed
 from .state import get_paths
 
 Scope = Literal["user", "user-local", "project", "project-local", "managed", "approved-tools"]
+
+
+def _normalize_scope(scope: str | None) -> tuple[str, ...] | None:
+    """Return the set of acceptable monorepo scope_kind values, or None to allow all."""
+    if scope is None or scope == "all":
+        return None
+    if scope == "real+nested":
+        return ("real", "nested")
+    if scope in ("real", "nested", "junk"):
+        return (scope,)
+    # Treat as a concrete path filter — caller will compare full path
+    return None
+
+
+def _classify_source_path(path: Path) -> str:
+    """Classify a settings file by its enclosing .claude/ directory.
+
+    The user's global ~/.claude/ and ~/.claude/projects/<id>/.claude/ are treated
+    as "real" — these are canonical Claude Code locations, not monorepo discoveries.
+    """
+    claude_dir = None
+    for parent in path.parents:
+        if parent.name == ".claude":
+            claude_dir = parent
+            break
+    if claude_dir is None:
+        return "real"
+    home = Path.home()
+    try:
+        rel = claude_dir.relative_to(home)
+        # ~/.claude or ~/.claude/projects/<id>/.claude are canonical
+        if rel.parts and rel.parts[0] == ".claude":
+            return "real"
+    except ValueError:
+        pass
+    try:
+        return classify_location(claude_dir).scope_kind
+    except Exception:
+        return "real"
 
 
 @dataclass(frozen=True)
@@ -80,15 +120,46 @@ def _read_json(p: Path) -> dict | None:
         return None
 
 
-def discover_rules() -> list[PermRule]:
+def _monorepo_settings_files() -> list[tuple[Path, Scope]]:
+    """Settings files from discovered monorepo .claude/ locations under cwd."""
+    out: list[tuple[Path, Scope]] = []
+    try:
+        locs = discover_locations(include_junk=True)
+    except Exception:
+        return out
+    for loc in locs:
+        for fname, scope in (
+            ("settings.json", "project"),
+            ("settings.local.json", "project-local"),
+        ):
+            p = loc.path / fname
+            if p.exists():
+                out.append((p, scope))
+    return out
+
+
+def discover_rules(scope: str | None = None) -> list[PermRule]:
+    """Discover permission rules across all sources.
+
+    ``scope`` filters by the enclosing .claude/ directory's monorepo
+    classification: ``"real" | "nested" | "junk" | "real+nested" | "all"``
+    (or ``None`` for all). Concrete path strings filter to a single source.
+    """
     out: list[PermRule] = []
-    # 5 settings layers
-    for path, scope in _settings_files():
+    # 5 standard settings layers + monorepo discoveries
+    sources: list[tuple[Path, Scope]] = list(_settings_files())
+    seen_paths = {p for p, _ in sources}
+    for p, s in _monorepo_settings_files():
+        if p not in seen_paths:
+            sources.append((p, s))
+            seen_paths.add(p)
+
+    for path, scope_label in sources:
         d = _read_json(path)
         if not d:
             continue
         perms = (d or {}).get("permissions", {}) or {}
-        src = PermSource(path=path, scope=scope)
+        src = PermSource(path=path, scope=scope_label)
         for kind in ("allow", "deny", "ask"):
             for raw in perms.get(kind, []) or []:
                 r = parse_rule(raw, decision=kind, source=src)
@@ -103,6 +174,24 @@ def discover_rules() -> list[PermRule]:
             r = parse_rule(raw, decision="allow", source=src)
             if r:
                 out.append(r)
+
+    # Apply scope filter
+    if scope is None or scope == "all":
+        return out
+    allowed_kinds = _normalize_scope(scope)
+    if allowed_kinds is not None:
+        out = [r for r in out if _classify_source_path(r.source.path) in allowed_kinds]
+    else:
+        # Concrete path: keep rules whose source path lives under that dir
+        try:
+            target = Path(scope).resolve()
+            out = [
+                r for r in out
+                if target in r.source.path.resolve().parents
+                or r.source.path.resolve() == target
+            ]
+        except (OSError, ValueError):
+            pass
     return out
 
 
