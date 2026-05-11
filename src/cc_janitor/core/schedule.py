@@ -52,6 +52,13 @@ TEMPLATES: dict[str, dict] = {
         "default_cron": "0 4 * * 0",
         "command": "cc-janitor backups prune --older-than-days 30",
     },
+    "dream-tar-compact": {
+        "default_cron": "0 5 * * 0",
+        "command": (
+            "cc-janitor backups tar-compact --kind dream "
+            "--older-than-days 7 --apply"
+        ),
+    },
 }
 
 MARKER_PREFIX = "# cc-janitor-job:"

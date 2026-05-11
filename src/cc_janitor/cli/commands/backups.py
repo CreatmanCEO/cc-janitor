@@ -11,7 +11,9 @@ or prune.
 from __future__ import annotations
 
 import shutil
+import tarfile
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import typer
 
@@ -103,3 +105,84 @@ def prune_cmd(
             shutil.rmtree(bucket, ignore_errors=True)
         changed["deleted_buckets"] = [b.name for b in targets]
     typer.echo(f"Deleted {len(targets)} backup bucket(s).")
+
+
+@backups_app.command("tar-compact")
+def tar_compact_cmd(
+    kind: str = typer.Option(
+        "dream",
+        "--kind",
+        help="Backup subtree to compact (currently only `dream`).",
+    ),
+    older_than_days: int = typer.Option(
+        7,
+        "--older-than-days",
+        help="Tar pairs whose pre/post mirrors are all older than N days.",
+    ),
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Actually create tar.gz and remove raw mirrors (default: dry-run).",
+    ),
+) -> None:
+    """Tar-compact aged pre/post mirror pairs into ``<pair_id>.tar.gz``.
+
+    Groups ``<pair_id>-pre`` / ``<pair_id>-post`` directories under the chosen
+    backup subtree, archives them as ``<pair_id>.tar.gz`` with ``pre/`` and
+    ``post/`` prefixes, and removes the raw mirrors. Drives the weekly
+    ``dream-tar-compact`` scheduler template.
+    """
+    root: Path = get_paths().home / "backups" / kind
+    if not root.exists():
+        typer.echo("Nothing to compact.")
+        return
+
+    cutoff = datetime.now(UTC).timestamp() - older_than_days * 86400
+    pair_dirs: dict[str, list[Path]] = {}
+    for d in root.iterdir():
+        if not d.is_dir():
+            continue
+        name = d.name
+        if name.endswith("-pre"):
+            pair_dirs.setdefault(name[:-4], []).append(d)
+        elif name.endswith("-post"):
+            pair_dirs.setdefault(name[:-5], []).append(d)
+    old_pairs: dict[str, list[Path]] = {
+        pid: dirs
+        for pid, dirs in pair_dirs.items()
+        if dirs and all(d.stat().st_mtime < cutoff for d in dirs)
+    }
+
+    if not apply:
+        typer.echo(
+            f"[dry-run] Would tar-compact {len(old_pairs)} pair(s) "
+            f"older than {older_than_days}d under {root}."
+        )
+        for pid in sorted(old_pairs):
+            typer.echo(f"  - {pid}")
+        return
+
+    try:
+        require_confirmed()
+    except NotConfirmedError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(code=2) from e
+
+    with audit_action(
+        "backups tar-compact",
+        [f"--kind={kind}", f"--older-than-days={older_than_days}"],
+    ) as changed:
+        archived: list[str] = []
+        for pid, dirs in old_pairs.items():
+            archive_path = root / f"{pid}.tar.gz"
+            with tarfile.open(archive_path, "w:gz") as tf:
+                for d in dirs:
+                    arc = "pre" if d.name.endswith("-pre") else "post"
+                    for f in d.rglob("*"):
+                        if f.is_file():
+                            tf.add(f, arcname=f"{arc}/{f.relative_to(d)}")
+            for d in dirs:
+                shutil.rmtree(d, ignore_errors=True)
+            archived.append(pid)
+        changed["archived"] = archived
+    typer.echo(f"Compacted {len(old_pairs)} pair(s).")
