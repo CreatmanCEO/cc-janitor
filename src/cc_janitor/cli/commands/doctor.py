@@ -34,3 +34,16 @@ def doctor() -> None:
         else 0
     )
     typer.echo(f"Trash size: {trash_size}b")
+
+    from ...core.watcher import read_status
+
+    s = read_status()
+    if s is None:
+        typer.echo("Watcher:    not running")
+    elif s.is_alive:
+        typer.echo(
+            f"Watcher:    running (pid {s.pid}, since "
+            f"{s.started_at.isoformat()}, {s.marker_writes_count} reinjects)"
+        )
+    else:
+        typer.echo(f"Watcher:    stale (pid {s.pid} dead — run `watch stop`)")
