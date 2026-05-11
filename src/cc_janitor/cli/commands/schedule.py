@@ -83,6 +83,33 @@ def run_cmd(name: str):
     typer.echo(f"exit={rc}")
 
 
+@schedule_app.command("audit")
+def audit_cmd(
+    limit: int = typer.Option(20, "--limit", help="Show the last N scheduled runs"),
+    json_out: bool = typer.Option(False, "--json"),
+):
+    """Show recent scheduled-mode audit-log entries (i.e. ``mode=scheduled``)."""
+    from ...core.audit import AuditLog
+    from ...core.state import get_paths
+
+    log = AuditLog(get_paths().audit_log)
+    entries = [e for e in log.read() if e.mode == "scheduled"]
+    entries = entries[-limit:]
+    if not entries:
+        typer.echo("no scheduled-mode audit entries yet")
+        return
+    if json_out:
+        from dataclasses import asdict
+
+        typer.echo(json.dumps([asdict(e) for e in entries], ensure_ascii=False, indent=2))
+        return
+    for e in entries:
+        mark = "✗" if e.exit_code else "✓"
+        typer.echo(
+            f"{mark} {e.ts}  {e.cmd:24}  exit={e.exit_code}  args={' '.join(e.args)}"
+        )
+
+
 @schedule_app.command("promote")
 def promote_cmd(name: str):
     job = _load_manifest(name)

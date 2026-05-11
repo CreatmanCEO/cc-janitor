@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] — 2026-05-11
+
+### Added
+
+- **C3: `cc-janitor undo [<entry-ts>] [--apply]`.** Reverses the most
+  recent reversible audit-log entry; defaults to dry-run. Handles
+  ``session delete``/``session prune`` (via trash restore),
+  ``perms remove``/``perms prune``/``perms dedupe`` (via latest
+  ``backups/<sha>/`` .bak), and ``memory archive`` (via recorded
+  archive-path on the entry). ``config import`` undo is staged but not
+  yet implemented (Phase 4).
+- **C4 (partial): `cc-janitor schedule audit`.** Prints recent
+  ``mode=scheduled`` audit entries, with ``--limit N`` and ``--json``.
+- **C4 (partial): `cc-janitor memory delete <name>`.** Soft-deletes a
+  memory file to the trash (recoverable via ``cc-janitor trash restore``).
+- ``memory archive`` audit entries now include ``changed.archived =
+  {original, archive_path}`` so ``undo`` can reverse them.
+
+### Fixed (docs alignment)
+
+- **C4 (partial):** `CC_USAGE.md` no longer lists
+  ``cc-janitor hooks fix-windows-env`` as a real command; it is documented
+  as a Phase 4 TODO instead. Claude Code will no longer hallucinate it.
+- ``docs/cookbook.md`` §9 — references to ``~/.cc-janitor/hooks.log``
+  (singular) replaced with the actual ``~/.cc-janitor/hooks-log/<event>.log``
+  per-event directory.
+- ``docs/cookbook.md`` §11 — ``config import --force`` corrected to
+  ``--apply`` (the flag the CLI actually accepts).
+
 ## [0.3.2] — 2026-05-11
 
 ### Fixed (Critical safety)
