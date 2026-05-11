@@ -11,6 +11,14 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from .dream_snapshot import (
+    LockState,
+    observe_lock,
+    project_slug_from_memory_dir,
+    record_pair,
+    snapshot_post,
+    snapshot_pre,
+)
 from .state import get_paths
 
 
@@ -133,18 +141,85 @@ def run_watcher_once(
     return changed
 
 
-def run_watcher(memory_dirs: list[Path], interval: int) -> None:
-    """Main loop — invoked by the spawned daemon process."""
+def _new_pair_id(slug: str) -> str:
+    return datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + f"-{slug}"
+
+
+def run_dream_once(
+    memory_dirs: list[Path],
+    state: LockState,
+    pending: dict[Path, dict],
+) -> None:
+    """Single dream-watch poll iteration.
+
+    Observes ``.consolidate-lock`` lifecycle in each memory dir. On
+    lock-appears, writes a pre-snapshot and stores transition metadata in
+    ``pending``. On lock-gone, writes the post-snapshot and records a
+    ``DreamSnapshotPair`` to the JSONL history.
+    """
+    for mem in memory_dirs:
+        t = observe_lock(mem, state)
+        if t.kind == "lock_appeared":
+            slug = project_slug_from_memory_dir(mem)
+            pair_id = _new_pair_id(slug)
+            pre_dir = snapshot_pre(pair_id, mem)
+            pending[mem] = {
+                "pair_id": pair_id,
+                "slug": slug,
+                "pre_dir": pre_dir,
+                "ts_pre": datetime.now(UTC),
+                "pid": t.pid,
+            }
+        elif t.kind == "lock_gone":
+            info = pending.pop(mem, None)
+            if info is None:
+                continue
+            post_dir = snapshot_post(info["pair_id"], mem)
+            record_pair(
+                info["pair_id"],
+                mem,
+                project_slug=info["slug"],
+                dream_pid_in_lock=info["pid"],
+                ts_pre=info["ts_pre"],
+                ts_post=datetime.now(UTC),
+                pre_dir=info["pre_dir"],
+                post_dir=post_dir,
+            )
+
+
+def run_watcher(
+    memory_dirs: list[Path],
+    interval: int,
+    *,
+    dream: bool = False,
+    memory: bool = True,
+) -> None:
+    """Main loop — invoked by the spawned daemon process.
+
+    Args:
+        memory_dirs: per-project ``memory/`` dirs to observe.
+        interval: poll interval, seconds.
+        dream: if True, also poll ``.consolidate-lock`` lifecycle and
+            snapshot pre/post around Auto Dream consolidation events.
+        memory: if False, the mtime reinject watch is skipped (useful when
+            running purely as a dream-snapshot daemon).
+    """
     last_mtimes: dict[Path, float] = {}
-    for f in iter_watched_files(memory_dirs):
-        try:
-            last_mtimes[f] = f.stat().st_mtime
-        except OSError:
-            pass
+    if memory:
+        for f in iter_watched_files(memory_dirs):
+            try:
+                last_mtimes[f] = f.stat().st_mtime
+            except OSError:
+                pass
+    lock_state = LockState() if dream else None
+    pending: dict[Path, dict] = {}
     while True:
         try:
             time.sleep(interval)
-            run_watcher_once(memory_dirs, last_mtimes)
+            if memory:
+                run_watcher_once(memory_dirs, last_mtimes)
+            if dream and lock_state is not None:
+                run_dream_once(memory_dirs, lock_state, pending)
         except KeyboardInterrupt:
             return
         except Exception:

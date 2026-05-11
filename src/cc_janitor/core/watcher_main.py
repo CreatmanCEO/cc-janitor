@@ -14,7 +14,9 @@ def main() -> None:
     args = parser.parse_args()
     raw = os.environ.get("CC_JANITOR_WATCH_DIRS", "")
     dirs = [Path(p) for p in raw.split(os.pathsep) if p]
-    watcher.run_watcher(dirs, args.interval)
+    dream = os.environ.get("CC_JANITOR_WATCH_DREAM", "") == "1"
+    memory = os.environ.get("CC_JANITOR_WATCH_NO_MEMORY", "") != "1"
+    watcher.run_watcher(dirs, args.interval, dream=dream, memory=memory)
 
 
 if __name__ == "__main__":
