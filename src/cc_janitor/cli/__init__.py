@@ -3,6 +3,7 @@ from __future__ import annotations
 import typer
 
 from .commands.audit import audit_app
+from .commands.completions import completions_app
 from .commands.config import config_app
 from .commands.context import context_app
 from .commands.doctor import doctor as _doctor
@@ -44,6 +45,7 @@ def root(
 
 
 app.add_typer(audit_app, name="audit")
+app.add_typer(completions_app, name="completions")
 app.add_typer(config_app, name="config")
 app.add_typer(context_app, name="context")
 app.add_typer(hooks_app, name="hooks")
