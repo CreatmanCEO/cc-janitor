@@ -9,6 +9,7 @@ from typing import Literal
 from .config import load_config
 from .dream_snapshot import history
 from .memory import find_duplicate_lines
+from .settings_observer import observe_autodream_change
 from .state import get_paths
 
 Severity = Literal["OK", "WARN", "FAIL", "INFO"]
@@ -204,9 +205,35 @@ def _check_duplicate_summary() -> DoctorCheck:
     )
 
 
+def _check_settings_audit() -> DoctorCheck | None:
+    delta = observe_autodream_change()
+    if delta is None:
+        return None
+    old, new = delta
+    if new:
+        msg = (
+            "autoDreamEnabled was toggled OFF -> ON since last check. "
+            "Ensure backups (`cc-janitor watch start --dream`) are running "
+            "before the next Dream cycle to avoid silent memory loss."
+        )
+    else:
+        msg = (
+            "autoDreamEnabled was toggled ON -> OFF since last check. "
+            "Auto Dream is now disabled."
+        )
+    return DoctorCheck(
+        "settings_audit", "settings autoDream toggled", "WARN", msg,
+        {"old": old, "new": new},
+    )
+
+
 def run_checks() -> list[DoctorCheck]:
     cfg = load_config()
-    return [
+    checks: list[DoctorCheck] = []
+    audit = _check_settings_audit()
+    if audit is not None:
+        checks.append(audit)
+    checks.extend([
         _check_stale_lock(),
         _check_autodream_enabled(),
         _check_server_gate(),
@@ -216,4 +243,5 @@ def run_checks() -> list[DoctorCheck]:
         _check_disk_usage(cfg),
         _check_memory_file_count(cfg),
         _check_duplicate_summary(),
-    ]
+    ])
+    return checks
