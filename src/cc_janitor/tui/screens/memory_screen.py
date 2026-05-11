@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.widget import Widget
-from textual.widgets import DataTable, Static
+from textual.widgets import DataTable, Select, Static
 
 from ...core.memory import discover_memory_files
+from ._source_filter import source_filter_options
 
 
 class MemoryScreen(Widget):
@@ -12,7 +13,8 @@ class MemoryScreen(Widget):
 
     DEFAULT_CSS = """
     MemoryScreen { height: 100%; }
-    DataTable { height: 60%; }
+    #memory-source-filter { height: 3; }
+    DataTable { height: 57%; }
     #memory-preview { height: 40%; border: round green; padding: 1; }
     """
 
@@ -25,11 +27,28 @@ class MemoryScreen(Widget):
     ]
 
     def compose(self) -> ComposeResult:
+        yield Select(
+            list(source_filter_options()),
+            id="memory-source-filter",
+            value="real",
+            allow_blank=False,
+        )
         yield DataTable(id="memory-table")
         yield Static("", id="memory-preview")
 
     def on_mount(self) -> None:
+        self._source_filter = "real"
+        self._reload()
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id != "memory-source-filter":
+            return
+        self._source_filter = str(event.value)
+        self._reload()
+
+    def _reload(self) -> None:
         table: DataTable = self.query_one("#memory-table", DataTable)
+        table.clear(columns=True)
         table.add_columns("Type", "Size", "Modified", "Name", "Project")
         table.cursor_type = "row"
         self._items = discover_memory_files()
