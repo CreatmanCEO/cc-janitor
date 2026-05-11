@@ -42,7 +42,8 @@ class CcJanitorApp(App):
                 from .screens.schedule_screen import ScheduleScreen
                 yield ScheduleScreen()
             with TabPane("Audit", id="audit"):
-                yield Static("Audit screen — TODO")
+                from .screens.audit_screen import AuditScreen
+                yield AuditScreen()
         yield Footer()
 
     def action_toggle_lang(self) -> None:

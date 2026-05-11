@@ -12,6 +12,7 @@ from .commands.monorepo import monorepo_app
 from .commands.perms import perms_app
 from .commands.schedule import schedule_app
 from .commands.session import session_app
+from .commands.stats import stats_app
 from .commands.trash import trash_app
 from .commands.watch import watch_app
 
@@ -49,6 +50,7 @@ app.add_typer(monorepo_app, name="monorepo")
 app.add_typer(perms_app, name="perms")
 app.add_typer(schedule_app, name="schedule")
 app.add_typer(session_app, name="session")
+app.add_typer(stats_app, name="stats")
 app.add_typer(trash_app, name="trash")
 app.add_typer(watch_app, name="watch")
 app.command("doctor", help="Health check")(_doctor)
