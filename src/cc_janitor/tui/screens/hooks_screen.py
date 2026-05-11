@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.widget import Widget
-from textual.widgets import DataTable, Static
+from textual.widgets import DataTable, Select, Static
 
 from ...core.hooks import HookEntry, discover_hooks, simulate_hook
+from ._source_filter import source_filter_options
 
 
 class HooksScreen(Widget):
@@ -12,7 +13,8 @@ class HooksScreen(Widget):
 
     DEFAULT_CSS = """
     HooksScreen { height: 100%; }
-    DataTable { height: 60%; }
+    #hooks-source-filter { height: 3; }
+    DataTable { height: 57%; }
     #hooks-source { height: 40%; border: round green; padding: 1; }
     """
 
@@ -23,11 +25,28 @@ class HooksScreen(Widget):
     ]
 
     def compose(self) -> ComposeResult:
+        yield Select(
+            list(source_filter_options()),
+            id="hooks-source-filter",
+            value="real",
+            allow_blank=False,
+        )
         yield DataTable(id="hooks-table")
         yield Static("", id="hooks-source")
 
     def on_mount(self) -> None:
+        self._source_filter = "real"
+        self._reload()
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id != "hooks-source-filter":
+            return
+        self._source_filter = str(event.value)
+        self._reload()
+
+    def _reload(self) -> None:
         table: DataTable = self.query_one("#hooks-table", DataTable)
+        table.clear(columns=True)
         table.add_columns("Event", "Matcher", "Type", "Command", "Scope", "Logged")
         table.cursor_type = "row"
         self._hooks: list[HookEntry] = discover_hooks()

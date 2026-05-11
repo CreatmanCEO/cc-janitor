@@ -228,3 +228,76 @@ items per run) so a runaway template can't wipe a whole tree.
 **Next step:** Inspect the dry-run output via the audit log:
 `cc-janitor audit list --cmd schedule-run --json`. Adjust `CC_JANITOR_HARD_CAP`
 if your project legitimately needs more than 200 deletions per run.
+
+## Find every `.claude/` directory on my machine
+
+I want to see every `.claude/` directory anywhere on disk, including
+the junk that ships inside `node_modules` of vendored packages.
+
+    cc-janitor monorepo scan --root ~ --include-junk
+
+Output is a table with kind (real/nested/junk), settings/hooks flags,
+and full path. Use `--json` for piping into other tools. Closes
+upstream Issues #37344, #35561, #18192, #40640.
+
+## Auto-reinject memory after every edit
+
+I keep editing `~/.claude/CLAUDE.md` outside the TUI and forgetting
+to `cc-janitor context reinject`. Run a background watcher that polls
+my memory dirs every 30 seconds and writes the marker on change:
+
+    CC_JANITOR_USER_CONFIRMED=1 cc-janitor watch start
+    cc-janitor watch status        # confirm running
+    cc-janitor doctor              # see "Watcher: running (3 reinjects)"
+    CC_JANITOR_USER_CONFIRMED=1 cc-janitor watch stop
+
+Opt-in only. Never auto-started. Uses mtime polling — no platform-
+specific FS-event APIs.
+
+## Track context cost over time
+
+Every day at 00:05 the `context-audit` scheduled job records a snapshot
+of session count, perm rule count, context tokens, trash size, and
+audit-log delta to `~/.cc-janitor/history/<date>.json`. View the
+trend:
+
+    cc-janitor stats --since 30d
+    cc-janitor stats --since 7d --format csv > /tmp/last-week.csv
+
+The TUI Audit tab shows the same data as ASCII sparklines (toggle
+with `s`). After running `cc-janitor perms prune` you can see the
+perm-rules count drop in the very next snapshot.
+
+## Move my cc-janitor config from Windows to my Mac
+
+On the Windows desktop:
+
+    cc-janitor config export ~/Desktop/cc-janitor-bundle.tar.gz \
+                            --include-memory
+
+The bundle excludes `settings.local.json` and `.env` files
+unconditionally — no opt-out. Copy the tar.gz to your Mac (USB,
+scp, cloud-drive — whatever). On the Mac:
+
+    cc-janitor config import ~/Downloads/cc-janitor-bundle.tar.gz
+    # DRY RUN: would write 17 files. Re-run with --force to apply.
+    CC_JANITOR_USER_CONFIRMED=1 \
+      cc-janitor config import ~/Downloads/cc-janitor-bundle.tar.gz --force
+
+Existing destination files that differ from the bundle are backed up
+to `~/.cc-janitor/backups/import-<ts>/` before overwrite.
+
+## Enable tab completion
+
+    # bash
+    cc-janitor completions show bash > ~/.bash_completion.d/cc-janitor
+
+    # zsh
+    cc-janitor completions show zsh > ~/.zfunc/_cc-janitor
+
+    # PowerShell
+    cc-janitor completions show powershell >> $PROFILE
+
+Or let cc-janitor write the file in the conventional location for you:
+
+    CC_JANITOR_USER_CONFIRMED=1 cc-janitor completions install bash

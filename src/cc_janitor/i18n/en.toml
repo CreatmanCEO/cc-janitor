@@ -63,3 +63,37 @@ template_trash_cleanup = "trash-cleanup"
 template_session_prune = "session-prune"
 template_context_audit = "context-audit"
 template_backup_rotate = "backup-rotate"
+
+[monorepo]
+title = "Monorepo locations"
+real = "real"
+nested = "nested"
+junk = "junk"
+source_filter = "Source"
+
+[watcher]
+title = "Watcher"
+not_running = "not running"
+running = "running"
+stale = "stale"
+started = "Watcher started"
+stopped = "Watcher stopped"
+
+[stats]
+title = "Stats"
+sessions = "Sessions"
+perm_rules = "Perm rules"
+context_tokens = "Context tokens"
+trash_bytes = "Trash bytes"
+no_data = "No snapshots in window"
+
+[bundle]
+title = "Config bundle"
+exported = "Exported {n} files to {out}"
+imported = "Imported {n} files"
+dry_run = "DRY RUN: would write {n} files. Re-run with --force to apply."
+
+[completions]
+title = "Shell completions"
+installed = "Wrote completion script to {target}"
+unknown_shell = "Unknown shell: {shell}"

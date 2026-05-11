@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.widget import Widget
-from textual.widgets import DataTable, Static
+from textual.widgets import DataTable, Select, Static
 
 from ...core.permissions import analyze_usage, discover_rules, find_duplicates
 from ...core.sessions import discover_sessions
+from ._source_filter import source_filter_options
 
 
 class PermsScreen(Widget):
@@ -13,20 +14,38 @@ class PermsScreen(Widget):
 
     DEFAULT_CSS = """
     PermsScreen { height: 100%; }
-    DataTable { height: 65%; }
+    #perms-source-filter { height: 3; }
+    DataTable { height: 62%; }
     #perms-summary { height: 35%; border: round green; padding: 1; }
     """
 
     def compose(self) -> ComposeResult:
+        yield Select(
+            list(source_filter_options()),
+            id="perms-source-filter",
+            value="real",
+            allow_blank=False,
+        )
         yield DataTable(id="perms-table")
         yield Static("", id="perms-summary")
 
     def on_mount(self) -> None:
+        self._source_filter = "real"
+        self._reload()
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id != "perms-source-filter":
+            return
+        self._source_filter = str(event.value)
+        self._reload()
+
+    def _reload(self) -> None:
         rules = analyze_usage(discover_rules(), discover_sessions())
         dups = find_duplicates(rules)
         dup_set = {id(r) for d in dups for r in d.rules}
 
         table: DataTable = self.query_one("#perms-table", DataTable)
+        table.clear(columns=True)
         table.add_columns("Tool", "Pattern", "Source", "Used90d", "Flags")
         table.cursor_type = "row"
 

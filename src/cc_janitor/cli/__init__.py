@@ -3,17 +3,22 @@ from __future__ import annotations
 import typer
 
 from .commands.audit import audit_app
+from .commands.completions import completions_app
+from .commands.config import config_app
 from .commands.context import context_app
 from .commands.doctor import doctor as _doctor
 from .commands.hooks import hooks_app
 from .commands.install_hooks import install_hooks as _install_hooks
 from .commands.memory import memory_app
+from .commands.monorepo import monorepo_app
 from .commands.perms import perms_app
 from .commands.schedule import schedule_app
 from .commands.session import session_app
+from .commands.stats import stats_app
 from .commands.trash import trash_app
+from .commands.watch import watch_app
 
-__VERSION__ = "0.2.0"
+__VERSION__ = "0.3.0"
 
 app = typer.Typer(no_args_is_help=False, help="cc-janitor — Tidy Claude Code")
 
@@ -40,12 +45,17 @@ def root(
 
 
 app.add_typer(audit_app, name="audit")
+app.add_typer(completions_app, name="completions")
+app.add_typer(config_app, name="config")
 app.add_typer(context_app, name="context")
 app.add_typer(hooks_app, name="hooks")
 app.add_typer(memory_app, name="memory")
+app.add_typer(monorepo_app, name="monorepo")
 app.add_typer(perms_app, name="perms")
 app.add_typer(schedule_app, name="schedule")
 app.add_typer(session_app, name="session")
+app.add_typer(stats_app, name="stats")
 app.add_typer(trash_app, name="trash")
+app.add_typer(watch_app, name="watch")
 app.command("doctor", help="Health check")(_doctor)
 app.command("install-hooks", help="Install reinject PreToolUse hook")(_install_hooks)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from textual.app import App, ComposeResult
-from textual.widgets import Footer, Header, Static, TabbedContent, TabPane
+from textual.widgets import Footer, Header, TabbedContent, TabPane
 
 from ..i18n import detect_lang, set_lang, t
 
@@ -42,7 +42,8 @@ class CcJanitorApp(App):
                 from .screens.schedule_screen import ScheduleScreen
                 yield ScheduleScreen()
             with TabPane("Audit", id="audit"):
-                yield Static("Audit screen — TODO")
+                from .screens.audit_screen import AuditScreen
+                yield AuditScreen()
         yield Footer()
 
     def action_toggle_lang(self) -> None:
