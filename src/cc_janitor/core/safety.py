@@ -112,10 +112,15 @@ def restore_from_trash(trash_id: str, *, paths: Paths) -> Path:
     """Restore a trashed item to its original path.
 
     Raises:
+        NotConfirmedError: if ``CC_JANITOR_USER_CONFIRMED`` is not set.
+            Restore is a mutation — recovering a previously soft-deleted
+            file (which may contain secrets) requires explicit user
+            authorisation, same as any other write.
         FileNotFoundError: if ``trash_id`` does not name a known bucket.
         FileExistsError: if the original path is now occupied. The trash
             bucket is left intact so the caller can decide what to do.
     """
+    require_confirmed()
     bucket = paths.trash / trash_id
     meta_p = bucket / "_meta.json"
     if not meta_p.exists():

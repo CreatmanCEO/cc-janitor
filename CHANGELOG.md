@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-05-11
+
+### Fixed (Critical safety)
+
+- **C1: TUI no longer bypasses the `CC_JANITOR_USER_CONFIRMED` gate.**
+  Previously `tui/screens/{schedule,memory}_screen.py` called
+  `os.environ.setdefault("CC_JANITOR_USER_CONFIRMED", "1")` before each
+  mutation — silently neutralising the central safety primitive.
+  Replaced with an explicit `ConfirmModal` (new `tui/_confirm.py`); the
+  env var is now scoped per action via the `tui_confirmed()` context
+  manager and restored on exit. Audit-log entries from TUI now record
+  `mode="tui"`.
+- **C2: `core.safety.restore_from_trash` now requires
+  `CC_JANITOR_USER_CONFIRMED=1`.** Restoring previously soft-deleted
+  files (which may contain secrets) is a mutation and must be gated like
+  any other write.
+
+### Added
+
+- **C5 fix: `cc-janitor backups list/prune` commands.** New top-level
+  sub-typer for managing `~/.cc-janitor/backups/`. The Phase 2
+  `backup-rotate` scheduler template previously emitted
+  `cc-janitor trash empty --older-than 30d --backups` which references
+  flags that do not exist; it now emits
+  `cc-janitor backups prune --older-than-days 30`.
+
 ## [0.3.1] — 2026-05-11
 
 ### Fixed

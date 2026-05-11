@@ -50,7 +50,7 @@ TEMPLATES: dict[str, dict] = {
     },
     "backup-rotate": {
         "default_cron": "0 4 * * 0",
-        "command": "cc-janitor trash empty --older-than 30d --backups",
+        "command": "cc-janitor backups prune --older-than-days 30",
     },
 }
 
