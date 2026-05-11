@@ -3,8 +3,10 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import platform
 import re
+import shutil
 import tarfile
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -12,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
+from .safety import require_confirmed
 from .state import get_paths
 
 FileKind = Literal["claude_md", "skill", "settings", "memory", "mcp_config"]
@@ -130,3 +133,92 @@ def export_bundle(out_path: Path, *, include_memory: bool = False) -> int:
             info.mode = 0o644
             tar.addfile(info, io.BytesIO(data))
     return len(entries)
+
+
+def _verify_member(tar: tarfile.TarFile, arcname: str, expected_sha: str) -> bytes:
+    member = tar.extractfile(arcname)
+    if member is None:
+        raise ValueError(f"Bundle missing member: {arcname}")
+    data = member.read()
+    actual = _sha256(data)
+    if actual != expected_sha:
+        raise ValueError(
+            f"SHA mismatch for {arcname}: expected {expected_sha}, got {actual}"
+        )
+    return data
+
+
+def _resolve_dest(arcname: str) -> Path | None:
+    """Return the destination path on disk, or None for non-file entries."""
+    home = get_paths().home.parent
+    cwd = Path.cwd()
+    if arcname == "manifest.json":
+        return None
+    if arcname.startswith("claude/"):
+        return home / ".claude" / arcname[len("claude/"):]
+    if arcname.startswith("project/"):
+        return cwd / ".claude" / arcname[len("project/"):]
+    raise ValueError(f"Unknown bundle arcname prefix: {arcname}")
+
+
+def import_bundle(
+    bundle_path: Path, *, dry_run: bool, force: bool
+) -> dict:
+    """Import a bundle into the local Claude config tree.
+
+    - Requires CC_JANITOR_USER_CONFIRMED=1.
+    - Verifies SHA-256 of every member against the manifest before writing.
+    - Backs up existing destination files to
+      ``~/.cc-janitor/backups/import-<ts>/`` before overwrite.
+    - Writes atomically via ``os.replace``.
+    """
+    require_confirmed()
+    backups: list[Path] = []
+    written: list[Path] = []
+    plan_writes = 0
+
+    with tarfile.open(bundle_path, "r:gz") as tar:
+        mf = tar.extractfile("manifest.json")
+        if mf is None:
+            raise ValueError("Bundle has no manifest.json")
+        manifest = json.loads(mf.read().decode("utf-8"))
+        if manifest.get("version") != 1:
+            raise ValueError(
+                f"Unsupported bundle version: {manifest.get('version')}"
+            )
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+        backup_root = get_paths().backups / f"import-{ts}"
+
+        for entry in manifest["files"]:
+            arcname = entry["arcname"]
+            data = _verify_member(tar, arcname, entry["sha256"])
+            dest = _resolve_dest(arcname)
+            if dest is None:
+                continue
+            if dest.exists():
+                existing = dest.read_bytes()
+                if _sha256(existing) == entry["sha256"]:
+                    continue  # already identical
+            plan_writes += 1
+            if dry_run or not force:
+                continue
+            if dest.exists():
+                backup_root.mkdir(parents=True, exist_ok=True)
+                bp = backup_root / dest.name
+                # Avoid clobbering if two members share a basename.
+                if bp.exists():
+                    bp = backup_root / f"{dest.name}.{len(backups)}"
+                shutil.copy2(dest, bp)
+                backups.append(bp)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            tmp = dest.with_suffix(dest.suffix + ".cc-janitor-tmp")
+            tmp.write_bytes(data)
+            os.replace(tmp, dest)
+            written.append(dest)
+
+    return {
+        "would_write": plan_writes,
+        "written": len(written),
+        "backups": [str(b) for b in backups],
+        "destinations": [str(d) for d in written],
+    }
