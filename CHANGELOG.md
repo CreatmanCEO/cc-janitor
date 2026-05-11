@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-05-11
+
+### Added — Phase 4: Dream safety net
+
+- **Dream snapshot harness.** New top-level `cc-janitor dream` subapp:
+  `history`, `diff <pair_id>`, `doctor`, `rollback <pair_id> --apply`,
+  `prune --older-than-days N --apply`. Snapshots are stored under
+  `~/.cc-janitor/backups/dream/<pair_id>-{pre,post}/`; pairs recorded
+  to `~/.cc-janitor/dream-snapshots.jsonl`.
+- **Watcher `--dream` mode.** `cc-janitor watch start --dream` polls
+  every `~/.claude/projects/*/memory/.consolidate-lock`. On lock-appears
+  writes a raw mirror pre-snapshot; on lock-gone writes the post-snapshot
+  and records the pair.
+- **`cc-janitor dream doctor` (10 checks).** Stale `.consolidate-lock`
+  detection, `autoDreamEnabled` state, server-gate inference hint,
+  last-dream timestamp, backup dir health + disk usage, MEMORY.md cap,
+  memory file count, cross-file duplicate summary, settings-audit
+  toggle warning.
+- **`cc-janitor stats sleep-hygiene`.** Four keyword/regex/dup metrics
+  (MEMORY.md line count, relative-date density, cross-file duplicate
+  count, contradicting-feedback pairs).
+- **`cc-janitor backups tar-compact --kind dream`** + new scheduler
+  template `dream-tar-compact`. Raw mirrors compacted to `.tar.gz`
+  after 7 days, tarballs purged after 30 days (thresholds configurable
+  via `~/.cc-janitor/config.toml`).
+- **`~/.cc-janitor/config.toml`** (optional). User-tunable thresholds
+  for dream-doctor, snapshot retention, hygiene regex extras.
+- **8th TUI tab: `Dream`.** Snapshot list pane + diff viewer pane.
+- **Settings audit hook.** Caches `autoDreamEnabled` value at
+  `~/.cc-janitor/state/autodream-last-seen.json`; on flip, writes an
+  audit-log entry (`cmd=settings-observe`) and surfaces a WARN row in
+  `cc-janitor dream doctor` ("settings autoDream toggled").
+- **i18n `[dream]` and `[sleep_hygiene]` tables** for English and
+  Russian.
+- **Three new cookbook recipes** covering snapshot-after-Dream
+  diff/rollback, stale-lock diagnosis, and scheduled snapshot setup.
+
+### Fixed
+
+- Closes verified user pain in upstream Claude Code Issues #47959
+  (silent Auto Dream memory deletion), #50694 (stale
+  `.consolidate-lock` silently disables Auto Dream), #38493
+  (missing `.dream-log.md`), #38461 (server-gate inference for
+  Auto Dream flag).
+
 ## [0.3.3] — 2026-05-11
 
 ### Added

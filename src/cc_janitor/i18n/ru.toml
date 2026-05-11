@@ -97,3 +97,22 @@ dry_run = "СУХОЙ ПРОГОН: будет записано {n} файлов
 title = "Автодополнения оболочки"
 installed = "Скрипт автодополнения записан в {target}"
 unknown_shell = "Неизвестная оболочка: {shell}"
+
+[dream]
+title = "Сны"
+list_header = "Дата    Проект    ΔФайлов    ΔСтрок"
+no_pairs = "Пар снимков пока нет. Запустите `cc-janitor watch start --dream`."
+diff_select = "Выберите пару снимков слева."
+doctor_running = "Запуск проверок dream-doctor..."
+autodream_toggled = "переключён autoDream"
+autodream_toggled_warn = "Auto Dream был переключён. Убедитесь в наличии резервных копий до следующего цикла Dream."
+rollback_confirm = "Откатить память к снимку до {pair_id}?"
+prune_confirm = "Удалить {count} пар(ы) снимков старше {days} дней?"
+
+[sleep_hygiene]
+title = "Гигиена сна"
+memory_md_size = "Размер MEMORY.md (строк)"
+relative_dates = "Плотность относительных дат"
+duplicate_lines = "Дубликаты строк между файлами"
+contradicting_feedback = "Противоречащие пары feedback"
+no_data = "Нет файлов памяти для анализа."

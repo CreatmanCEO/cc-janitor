@@ -1,10 +1,14 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+
 from typer.testing import CliRunner
+
 from cc_janitor.cli import app
 from cc_janitor.core.dream_snapshot import (
-    snapshot_pre, snapshot_post, record_pair,
+    record_pair,
+    snapshot_post,
+    snapshot_pre,
 )
 
 runner = CliRunner()
@@ -21,8 +25,8 @@ def _setup_pair(tmp_path, monkeypatch):
     post = snapshot_post("20260511T120000Z-proj", mem)
     record_pair("20260511T120000Z-proj", mem, project_slug="proj",
                 dream_pid_in_lock=4711,
-                ts_pre=datetime.now(timezone.utc),
-                ts_post=datetime.now(timezone.utc),
+                ts_pre=datetime.now(UTC),
+                ts_post=datetime.now(UTC),
                 pre_dir=pre, post_dir=post)
     return mem
 

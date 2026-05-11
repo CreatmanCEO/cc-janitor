@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import shutil
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
@@ -45,8 +45,8 @@ def history_cmd(
     for p in items:
         typer.echo(
             f"{p.pair_id:<32} {p.project_slug:<20} "
-            f"{str(p.file_count_delta or 0):<8} "
-            f"{str(p.line_count_delta or 0):<8}"
+            f"{p.file_count_delta or 0!s:<8} "
+            f"{p.line_count_delta or 0!s:<8}"
         )
 
 
@@ -138,7 +138,7 @@ def rollback_cmd(
     ) as changed:
         trash = (
             get_paths().home / ".trash"
-            / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
             / f"dream-rollback-{pair_id}"
         )
         trash.mkdir(parents=True, exist_ok=True)
@@ -175,7 +175,7 @@ def prune_cmd(
     if not root.exists():
         typer.echo("Nothing to prune.")
         return
-    now = datetime.now(timezone.utc).timestamp()
+    now = datetime.now(UTC).timestamp()
     cutoff = now - older_than_days * 86400
     victims = [d for d in root.iterdir() if d.stat().st_mtime < cutoff]
     if not apply:

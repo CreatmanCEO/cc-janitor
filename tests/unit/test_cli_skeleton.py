@@ -6,7 +6,7 @@ from cc_janitor.cli import app
 def test_version():
     r = CliRunner().invoke(app, ["--version"])
     assert r.exit_code == 0
-    assert "0.4.0.dev0" in r.stdout
+    assert "0.4.0" in r.stdout
 
 
 def test_help_works():

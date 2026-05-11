@@ -1,7 +1,6 @@
-from pathlib import Path
 from cc_janitor.core.config import (
-    Config, DreamDoctorConfig, SnapshotsConfig, HygieneConfig,
-    load_config, DEFAULTS,
+    DEFAULTS,
+    load_config,
 )
 
 

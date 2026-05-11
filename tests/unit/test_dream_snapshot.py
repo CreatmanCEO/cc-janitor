@@ -1,9 +1,13 @@
-import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+
 from cc_janitor.core.dream_snapshot import (
-    DreamSnapshotPair, LockState, observe_lock, snapshot_pre,
-    snapshot_post, record_pair, history,
+    LockState,
+    history,
+    observe_lock,
+    record_pair,
+    snapshot_post,
+    snapshot_pre,
 )
 
 
@@ -52,8 +56,8 @@ def test_full_pair_roundtrip(tmp_path, monkeypatch):
     post = snapshot_post(pair_id, mem)
     pair = record_pair(pair_id, mem, project_slug="proj",
                        dream_pid_in_lock=38249,
-                       ts_pre=datetime.now(timezone.utc),
-                       ts_post=datetime.now(timezone.utc),
+                       ts_pre=datetime.now(UTC),
+                       ts_post=datetime.now(UTC),
                        pre_dir=pre, post_dir=post)
     assert pair.file_count_delta == -1
     assert pair.line_count_delta < 0

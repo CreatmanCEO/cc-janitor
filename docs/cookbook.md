@@ -1,6 +1,6 @@
 # Cookbook
 
-Ten task-oriented recipes for everyday cc-janitor use. Each recipe follows
+Thirteen task-oriented recipes for everyday cc-janitor use. Each recipe follows
 the same shape: **Problem → Command → Expected output → Next step.**
 
 ---
@@ -303,3 +303,97 @@ to `~/.cc-janitor/backups/import-<ts>/` before overwrite.
 Or let cc-janitor write the file in the conventional location for you:
 
     CC_JANITOR_USER_CONFIRMED=1 cc-janitor completions install bash
+
+---
+
+## 11. Auto Dream just rewrote my memory — how do I see what changed?
+
+**Problem:** Anthropic's Auto Dream rewrote `~/.claude/projects/*/memory/`
+during your last session. You want to know exactly which lines moved or
+disappeared before deciding whether to keep the new version.
+
+**Command:**
+
+```bash
+# Find the pair that wraps the most recent Dream cycle
+cc-janitor dream history
+
+# Diff pre vs post (unified diff, all files in the pair)
+cc-janitor dream diff <pair_id>
+
+# Narrow to a single file
+cc-janitor dream diff <pair_id> --file MEMORY.md
+
+# Regret it? Roll back to the pre-snapshot:
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor dream rollback <pair_id> --apply
+```
+
+**Expected output:** A coloured unified diff. `rollback --apply` restores
+the pre-snapshot files in place and writes the displaced post-Dream copy
+to `~/.cc-janitor/.trash/<ts>/dream-rollback-<pair_id>/`.
+
+**Next step:** `cc-janitor stats sleep-hygiene` — surface the keyword,
+duplicate, and stale-date counts that drove Dream to mutate so much.
+
+---
+
+## 12. Auto Dream is silently disabled — diagnose it
+
+**Problem:** You enabled `autoDreamEnabled` in `~/.claude/settings.json`
+but Dream never runs. Most common cause: a leftover `.consolidate-lock`
+file from a crashed previous run (upstream Issue #50694).
+
+**Command:**
+
+```bash
+cc-janitor dream doctor
+```
+
+**Expected output:** Ten check rows. Look for `FAIL` on `stale_lock`. If
+present, manually `rm` the listed lock file(s) and rerun
+`cc-janitor dream doctor`. Look for `WARN` on `settings autoDream
+toggled` — that means the flag flipped since the last check; verify
+backups are configured.
+
+**Next step:** `CC_JANITOR_USER_CONFIRMED=1 cc-janitor watch start --dream`
+to enable lock-file polling + snapshots, so next time you can diff before
+deciding.
+
+---
+
+## 13. Set up scheduled snapshot-around-Dream so I never lose memory again
+
+**Problem:** You want guaranteed pre/post snapshots around every Auto
+Dream cycle, with disk usage capped automatically.
+
+**Command:**
+
+```bash
+# Start the watcher (polls ~/.claude/projects/*/memory/.consolidate-lock)
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor watch start --dream
+cc-janitor watch status
+
+# Compact 7-day-old raw snapshot dirs to .tar.gz, purge 30-day-old tars
+cc-janitor backups tar-compact --kind dream
+
+# Schedule the compaction nightly via OS-native scheduler
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor schedule add dream-tar-compact
+cc-janitor schedule list
+```
+
+**Expected output:** A `dream-tar-compact` entry in the scheduler list
+(cron / Task Scheduler) running nightly. Snapshots accumulate under
+`~/.cc-janitor/backups/dream/` and compact themselves.
+
+**Next step:** Override defaults via `~/.cc-janitor/config.toml`:
+
+```toml
+[dream_doctor]
+disk_warning_mb = 1024
+memory_md_line_threshold = 180
+memory_file_count_threshold = 200
+
+[backups]
+dream_compact_after_days = 14
+dream_purge_after_days = 60
+```

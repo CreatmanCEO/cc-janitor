@@ -1,5 +1,6 @@
 from pathlib import Path
-from cc_janitor.core.dream_diff import compute_diff, DreamFileDelta
+
+from cc_janitor.core.dream_diff import compute_diff
 
 
 def _mk(path: Path, content: str):

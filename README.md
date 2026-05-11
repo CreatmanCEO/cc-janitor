@@ -87,11 +87,33 @@ cc-janitor never silently destroys data:
 
 cc-janitor is designed to be invoked by both you (TUI / CLI) and Claude Code itself (CLI), but only on your explicit request. See [docs/CC_USAGE.md](docs/CC_USAGE.md) for the reference Claude Code reads when deciding whether a subcommand is safe to call.
 
+## Phase 4: Dream safety net
+
+**Dream safety net** — snapshot before Auto Dream, diff after, rollback if
+needed. Closes upstream Issues #47959, #50694, #38493, #38461.
+
+```bash
+# Opt-in: poll lock files and snapshot around every Auto Dream cycle
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor watch start --dream
+
+# Review what each Dream cycle changed
+cc-janitor dream history
+cc-janitor dream diff <pair_id>
+
+# 10 health checks covering stale locks, autoDream flag, disk, hygiene
+cc-janitor dream doctor
+
+# Roll back if Dream rewrote something you wanted
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor dream rollback <pair_id> --apply
+```
+
 ## Roadmap
 
-- [x] **Phase 1** (this release): sessions / permissions / context inspector / CLI / TUI / safety primitives
-- [ ] **Phase 2**: memory editor, reinject hook, hook debugger with simulation, scheduler (cron / Task Scheduler)
-- [ ] **Phase 3**: monorepo nested .claude/ discovery, auto-reinject watcher, stats dashboard, export/import config
+- [x] **Phase 1**: sessions / permissions / context inspector / CLI / TUI / safety primitives
+- [x] **Phase 2**: memory editor, reinject hook, hook debugger with simulation, scheduler (cron / Task Scheduler)
+- [x] **Phase 3**: monorepo nested .claude/ discovery, auto-reinject watcher, stats dashboard, export/import config
+- [x] **Phase 4**: Dream safety net — snapshot/diff/doctor/rollback, sleep-hygiene metrics, settings audit hook
+- [ ] **Phase 5**: cross-platform hook fixers, `dream fix-stale-lock`, deeper TUI for Dream pair review
 
 ## Contributing
 

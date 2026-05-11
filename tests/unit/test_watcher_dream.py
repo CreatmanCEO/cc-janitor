@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
 from pathlib import Path
+
 from cc_janitor.core.dream_snapshot import LockState, history
 from cc_janitor.core.watcher import run_dream_once
 
