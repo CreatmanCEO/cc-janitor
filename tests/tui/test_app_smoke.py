@@ -12,7 +12,7 @@ async def test_app_renders():
 
 
 @pytest.mark.asyncio
-async def test_app_has_seven_tabs():
+async def test_app_has_eight_tabs():
     from textual.widgets import TabbedContent, TabPane
 
     from cc_janitor.tui.app import CcJanitorApp
@@ -22,4 +22,4 @@ async def test_app_has_seven_tabs():
         await pilot.pause()
         tabbed = app.query_one(TabbedContent)
         panes = list(tabbed.query(TabPane))
-        assert len(panes) == 7
+        assert len(panes) == 8
