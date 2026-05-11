@@ -9,6 +9,7 @@ from datetime import timedelta
 
 import typer
 
+from ...core.sleep_hygiene import compute_report
 from ...core.stats import (
     load_snapshots,
     render_sparkline,
@@ -78,3 +79,40 @@ def snapshot_cmd() -> None:
     s = take_snapshot()
     p = write_snapshot(s)
     typer.echo(f"Snapshot written: {p}")
+
+
+@stats_app.command("sleep-hygiene")
+def sleep_hygiene(
+    project: str | None = typer.Option(None, "--project"),
+    json_out: bool = typer.Option(False, "--json"),
+) -> None:
+    report = compute_report()
+    projects = report.projects
+    if project:
+        projects = [p for p in projects if p.project_slug == project]
+    if json_out:
+        typer.echo(json.dumps({
+            "generated_at": report.generated_at.isoformat(),
+            "totals": report.totals,
+            "projects": [{
+                "project_slug": p.project_slug,
+                "memory_md_size_lines": p.memory_md_size_lines,
+                "memory_md_cap": p.memory_md_cap,
+                "relative_date_density": p.relative_date_density,
+                "relative_date_match_count": len(p.relative_date_matches),
+                "cross_file_dup_count": p.cross_file_dup_count,
+                "contradicting_pair_count": len(p.contradicting_pairs),
+            } for p in projects],
+        }, indent=2))
+        return
+    typer.echo("Sleep hygiene report")
+    typer.echo("-" * 70)
+    for p in projects:
+        typer.echo(
+            f"  {p.project_slug:<25} "
+            f"MEMORY.md {p.memory_md_size_lines}/{p.memory_md_cap}  "
+            f"rel-date density {p.relative_date_density:.3f}  "
+            f"dups {p.cross_file_dup_count}  "
+            f"contradictions {len(p.contradicting_pairs)}"
+        )
+    typer.echo(f"Totals: {report.totals}")

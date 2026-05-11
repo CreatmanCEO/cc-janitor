@@ -34,8 +34,21 @@ def _default_memory_dirs() -> list[Path]:
 @watch_app.command("start")
 def start(
     interval: int = typer.Option(30, "--interval", min=1),
+    dream: bool = typer.Option(
+        False,
+        "--dream/--no-dream",
+        help="Also snapshot around Auto Dream .consolidate-lock lifecycle.",
+    ),
+    no_memory: bool = typer.Option(
+        False,
+        "--no-memory",
+        help="Disable mtime reinject watch; useful with --dream.",
+    ),
 ) -> None:
-    with audit_action("watch start", [f"interval={interval}"]):
+    with audit_action(
+        "watch start",
+        [f"interval={interval}", f"dream={dream}", f"no_memory={no_memory}"],
+    ):
         try:
             require_confirmed()
         except NotConfirmedError as e:
@@ -60,6 +73,10 @@ def start(
         os.environ["CC_JANITOR_WATCH_DIRS"] = os.pathsep.join(
             str(d) for d in dirs
         )
+        if dream:
+            os.environ["CC_JANITOR_WATCH_DREAM"] = "1"
+        if no_memory:
+            os.environ["CC_JANITOR_WATCH_NO_MEMORY"] = "1"
         log = get_paths().home / "watcher.log"
         pid = w.spawn_daemon(
             [

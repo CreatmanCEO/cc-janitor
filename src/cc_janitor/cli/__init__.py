@@ -8,6 +8,7 @@ from .commands.completions import completions_app
 from .commands.config import config_app
 from .commands.context import context_app
 from .commands.doctor import doctor as _doctor
+from .commands.dream import dream_app
 from .commands.hooks import hooks_app
 from .commands.install_hooks import install_hooks as _install_hooks
 from .commands.memory import memory_app
@@ -20,7 +21,7 @@ from .commands.trash import trash_app
 from .commands.undo import undo as _undo
 from .commands.watch import watch_app
 
-__VERSION__ = "0.3.3"
+__VERSION__ = "0.4.0"
 
 app = typer.Typer(no_args_is_help=False, help="cc-janitor — Tidy Claude Code")
 
@@ -51,6 +52,7 @@ app.add_typer(backups_app, name="backups")
 app.add_typer(completions_app, name="completions")
 app.add_typer(config_app, name="config")
 app.add_typer(context_app, name="context")
+app.add_typer(dream_app, name="dream")
 app.add_typer(hooks_app, name="hooks")
 app.add_typer(memory_app, name="memory")
 app.add_typer(monorepo_app, name="monorepo")

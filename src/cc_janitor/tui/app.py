@@ -44,6 +44,9 @@ class CcJanitorApp(App):
             with TabPane("Audit", id="audit"):
                 from .screens.audit_screen import AuditScreen
                 yield AuditScreen()
+            with TabPane("Dream", id="dream"):
+                from .screens.dream_screen import DreamScreen
+                yield DreamScreen()
         yield Footer()
 
     def action_toggle_lang(self) -> None:

@@ -97,3 +97,22 @@ dry_run = "DRY RUN: would write {n} files. Re-run with --force to apply."
 title = "Shell completions"
 installed = "Wrote completion script to {target}"
 unknown_shell = "Unknown shell: {shell}"
+
+[dream]
+title = "Dream"
+list_header = "Date    Project    ΔFiles    ΔLines"
+no_pairs = "No snapshot pairs yet. Run `cc-janitor watch start --dream`."
+diff_select = "Select a snapshot pair on the left."
+doctor_running = "Running dream-doctor checks..."
+autodream_toggled = "settings autoDream toggled"
+autodream_toggled_warn = "Auto Dream was toggled. Verify backups are configured before the next Dream cycle."
+rollback_confirm = "Rollback memory to pre-snapshot {pair_id}?"
+prune_confirm = "Prune {count} snapshot pair(s) older than {days} days?"
+
+[sleep_hygiene]
+title = "Sleep hygiene"
+memory_md_size = "MEMORY.md size (lines)"
+relative_dates = "Relative-date density"
+duplicate_lines = "Cross-file duplicate lines"
+contradicting_feedback = "Contradicting feedback pairs"
+no_data = "No memory files to analyse."

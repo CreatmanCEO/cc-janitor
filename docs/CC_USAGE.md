@@ -73,3 +73,28 @@ invocation is recorded in `~/.cc-janitor/audit.log`.
 
 Most mutating commands accept `--dry-run` to preview without applying.
 Prefer dry-run when explaining what cc-janitor would do.
+
+## Phase 4 — Auto Dream safety net (read-only commands safe for Claude)
+
+```bash
+cc-janitor dream history [--project P] [--json]
+cc-janitor dream diff <pair_id> [--file F] [--json]
+cc-janitor dream doctor [--json]
+cc-janitor stats sleep-hygiene [--project P] [--json]
+cc-janitor watch status [--json]
+```
+
+Mutating (require `CC_JANITOR_USER_CONFIRMED=1`, user must explicitly OK):
+
+```bash
+cc-janitor dream rollback <pair_id> --apply
+cc-janitor dream prune --older-than-days N --apply
+cc-janitor watch start --dream
+cc-janitor backups tar-compact --kind dream
+cc-janitor schedule add dream-tar-compact
+```
+
+If `cc-janitor dream doctor` shows a WARN row labelled
+"settings autoDream toggled", advise the user to verify
+`cc-janitor watch start --dream` is running before the next Dream
+cycle, so memory edits will be snapshotted.
