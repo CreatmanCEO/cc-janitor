@@ -1,6 +1,6 @@
 [project]
 name = "cc-janitor"
-version = "0.2.0"
+version = "0.3.0.dev0"
 description = "Tidy up your Claude Code environment — sessions, permissions, context, hooks, schedule."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -31,6 +31,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+watcher = ["psutil>=5.9"]
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
