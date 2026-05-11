@@ -9,12 +9,15 @@ from ..core.state import get_paths
 
 
 @contextmanager
-def audit_action(cmd: str, args: list[str]) -> Iterator[dict]:
-    """Context manager that records the result of a CLI mutation to audit log.
+def audit_action(cmd: str, args: list[str], *, mode: str = "cli") -> Iterator[dict]:
+    """Context manager that records the result of a mutation to the audit log.
 
     Yields a dict the caller can populate with extra ``changed`` info; the
     final entry is written to the audit log when the context exits, regardless
     of success or exception. Exit code is 0 on success, 1 on exception.
+
+    ``mode`` is "cli" by default; TUI call-sites should pass ``mode="tui"`` so
+    audit-log consumers can distinguish click-driven mutations from CLI ones.
     """
     paths = get_paths()
     paths.ensure_dirs()
@@ -33,7 +36,7 @@ def audit_action(cmd: str, args: list[str]) -> Iterator[dict]:
         raise
     finally:
         log.record(
-            mode="cli",
+            mode=mode,
             user_confirmed=is_confirmed(),
             cmd=cmd,
             args=args,

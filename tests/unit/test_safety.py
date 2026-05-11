@@ -38,7 +38,8 @@ def test_soft_delete_moves_file(tmp_path):
     assert any(i.id == trash_id for i in items)
 
 
-def test_restore_from_trash(tmp_path):
+def test_restore_from_trash(tmp_path, monkeypatch):
+    monkeypatch.setenv("CC_JANITOR_USER_CONFIRMED", "1")
     paths = _paths(tmp_path)
     paths.ensure_dirs()
     src = tmp_path / "victim.txt"
@@ -48,7 +49,25 @@ def test_restore_from_trash(tmp_path):
     assert src.exists() and src.read_text() == "data"
 
 
-def test_soft_delete_and_restore_directory(tmp_path):
+def test_restore_from_trash_requires_confirmed(tmp_path, monkeypatch):
+    """Restore is a mutation — secrets in trash must not leak back without confirm."""
+    monkeypatch.setenv("CC_JANITOR_USER_CONFIRMED", "1")
+    paths = _paths(tmp_path)
+    paths.ensure_dirs()
+    src = tmp_path / "secret.txt"
+    src.write_text("API_KEY=hunter2")
+    trash_id = soft_delete(src, paths=paths)
+
+    monkeypatch.delenv("CC_JANITOR_USER_CONFIRMED", raising=False)
+    with pytest.raises(NotConfirmedError):
+        restore_from_trash(trash_id, paths=paths)
+    # File must still be in trash, not restored
+    assert not src.exists()
+    assert any(i.id == trash_id for i in list_trash(paths))
+
+
+def test_soft_delete_and_restore_directory(tmp_path, monkeypatch):
+    monkeypatch.setenv("CC_JANITOR_USER_CONFIRMED", "1")
     """A whole directory should round-trip cleanly (used for session deletes)."""
     paths = _paths(tmp_path)
     paths.ensure_dirs()
@@ -67,8 +86,9 @@ def test_soft_delete_and_restore_directory(tmp_path):
     assert (src_dir / "subagents" / "agent.jsonl").read_text(encoding="utf-8") == "hi\n"
 
 
-def test_restore_refuses_to_overwrite(tmp_path):
+def test_restore_refuses_to_overwrite(tmp_path, monkeypatch):
     """If the original path is occupied, restore must raise rather than clobber."""
+    monkeypatch.setenv("CC_JANITOR_USER_CONFIRMED", "1")
     paths = _paths(tmp_path)
     paths.ensure_dirs()
     src = tmp_path / "victim.txt"

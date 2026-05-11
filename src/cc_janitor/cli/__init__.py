@@ -3,6 +3,7 @@ from __future__ import annotations
 import typer
 
 from .commands.audit import audit_app
+from .commands.backups import backups_app
 from .commands.completions import completions_app
 from .commands.config import config_app
 from .commands.context import context_app
@@ -18,7 +19,7 @@ from .commands.stats import stats_app
 from .commands.trash import trash_app
 from .commands.watch import watch_app
 
-__VERSION__ = "0.3.1"
+__VERSION__ = "0.3.2"
 
 app = typer.Typer(no_args_is_help=False, help="cc-janitor — Tidy Claude Code")
 
@@ -45,6 +46,7 @@ def root(
 
 
 app.add_typer(audit_app, name="audit")
+app.add_typer(backups_app, name="backups")
 app.add_typer(completions_app, name="completions")
 app.add_typer(config_app, name="config")
 app.add_typer(context_app, name="context")

@@ -6,11 +6,13 @@ from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Button, DataTable, Input, Select, Static
 
+from ...cli._audit import audit_action
 from ...core.schedule import (
     TEMPLATES,
     ScheduledJob,
     get_scheduler,
 )
+from .._confirm import ConfirmModal, tui_confirmed
 
 
 class AddJobModal(ModalScreen[ScheduledJob | None]):
@@ -140,34 +142,50 @@ class ScheduleScreen(Widget):
             return None
 
     def action_add(self) -> None:
-        def _on_done(job: ScheduledJob | None) -> None:
+        def _on_picked(job: ScheduledJob | None) -> None:
             if job is None:
                 return
-            try:
-                import os
 
-                os.environ.setdefault("CC_JANITOR_USER_CONFIRMED", "1")
-                get_scheduler().add_job(job)
-                self.notify(f"Added {job.name} (dry-run-pending)")
-            except Exception as exc:
-                self.notify(f"Add failed: {exc}", severity="error")
-            self._reload()
+            def _on_confirm(ok: bool | None) -> None:
+                if not ok:
+                    self.notify("Add cancelled", severity="warning")
+                    return
+                try:
+                    with tui_confirmed(), audit_action(
+                        "schedule add", [job.template, job.cron_expr], mode="tui"
+                    ):
+                        get_scheduler().add_job(job)
+                    self.notify(f"Added {job.name} (dry-run-pending)")
+                except Exception as exc:
+                    self.notify(f"Add failed: {exc}", severity="error")
+                self._reload()
 
-        self.app.push_screen(AddJobModal(), _on_done)
+            self.app.push_screen(
+                ConfirmModal(f"Add scheduled job {job.name}?"), _on_confirm
+            )
+
+        self.app.push_screen(AddJobModal(), _on_picked)
 
     def action_remove(self) -> None:
         j = self._highlighted()
         if j is None:
             return
-        try:
-            import os
 
-            os.environ.setdefault("CC_JANITOR_USER_CONFIRMED", "1")
-            get_scheduler().remove_job(j.name)
-            self.notify(f"Removed {j.name}")
-        except Exception as exc:
-            self.notify(f"Remove failed: {exc}", severity="error")
-        self._reload()
+        def _on_confirm(ok: bool | None) -> None:
+            if not ok:
+                self.notify("Remove cancelled", severity="warning")
+                return
+            try:
+                with tui_confirmed(), audit_action(
+                    "schedule remove", [j.name], mode="tui"
+                ):
+                    get_scheduler().remove_job(j.name)
+                self.notify(f"Removed {j.name}")
+            except Exception as exc:
+                self.notify(f"Remove failed: {exc}", severity="error")
+            self._reload()
+
+        self.app.push_screen(ConfirmModal(f"Remove scheduled job {j.name}?"), _on_confirm)
 
     def action_run_now(self) -> None:
         j = self._highlighted()
@@ -184,15 +202,24 @@ class ScheduleScreen(Widget):
         if j is None or not j.dry_run_pending:
             self.notify("Nothing to promote", severity="warning")
             return
-        try:
-            import os
 
-            os.environ.setdefault("CC_JANITOR_USER_CONFIRMED", "1")
-            sched = get_scheduler()
-            sched.remove_job(j.name)
-            j.dry_run_pending = False
-            sched.add_job(j)
-            self.notify(f"Promoted {j.name} to live mode")
-        except Exception as exc:
-            self.notify(f"Promote failed: {exc}", severity="error")
-        self._reload()
+        def _on_confirm(ok: bool | None) -> None:
+            if not ok:
+                self.notify("Promote cancelled", severity="warning")
+                return
+            try:
+                with tui_confirmed(), audit_action(
+                    "schedule promote", [j.name], mode="tui"
+                ):
+                    sched = get_scheduler()
+                    sched.remove_job(j.name)
+                    j.dry_run_pending = False
+                    sched.add_job(j)
+                self.notify(f"Promoted {j.name} to live mode")
+            except Exception as exc:
+                self.notify(f"Promote failed: {exc}", severity="error")
+            self._reload()
+
+        self.app.push_screen(
+            ConfirmModal(f"Promote {j.name} to live mode?"), _on_confirm
+        )

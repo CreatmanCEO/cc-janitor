@@ -4,7 +4,9 @@ from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import DataTable, Select, Static
 
+from ...cli._audit import audit_action
 from ...core.memory import discover_memory_files
+from .._confirm import ConfirmModal, tui_confirmed
 from ._source_filter import source_filter_options
 
 
@@ -77,10 +79,21 @@ class MemoryScreen(Widget):
         preview.update(f"[b]{m.path.name}[/]  ({m.type})\n\n{body}")
 
     def action_reinject(self) -> None:
-        import os
-
         from ...core.reinject import queue_reinject
 
-        os.environ.setdefault("CC_JANITOR_USER_CONFIRMED", "1")
-        queue_reinject()
-        self.notify("Reinject queued — fires on next Claude Code tool call")
+        def _on_confirm(ok: bool | None) -> None:
+            if not ok:
+                self.notify("Reinject cancelled", severity="warning")
+                return
+            try:
+                with tui_confirmed(), audit_action(
+                    "context reinject", [], mode="tui"
+                ):
+                    queue_reinject()
+                self.notify("Reinject queued — fires on next Claude Code tool call")
+            except Exception as exc:
+                self.notify(f"Reinject failed: {exc}", severity="error")
+
+        self.app.push_screen(
+            ConfirmModal("Queue memory reinject on next tool call?"), _on_confirm
+        )
