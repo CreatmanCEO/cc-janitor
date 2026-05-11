@@ -2,7 +2,7 @@
 Hooks, and Memory tabs."""
 from __future__ import annotations
 
-from typing import Iterator
+from collections.abc import Iterator
 
 from ...core.monorepo import discover_locations
 

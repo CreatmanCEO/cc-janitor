@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-11
+
+### Added — Phase 3
+
+#### Monorepo nested .claude/ discovery (closes #37344, #35561, #18192, #40640)
+- `core/monorepo.py` walks a configurable root, skipping standard
+  noise dirs by default; classifies each `.claude/` as real/nested/junk
+- `cc-janitor monorepo scan/show`
+- TUI Permissions/Hooks/Memory tabs gain a Source filter dropdown widget
+  (backend scope-aware discovery wiring deferred to 0.3.1 — current
+  `discover_rules/hooks_files/memory_files` walk the full default tree)
+
+#### Auto-reinject background watcher (opt-in)
+- `core/watcher.py` mtime-poll loop, cross-platform daemon spawn
+  (`start_new_session` on POSIX, `DETACHED_PROCESS` on Windows)
+- `cc-janitor watch start/stop/status`
+- Health line in `cc-janitor doctor`
+- Optional `psutil` extra: `pip install cc-janitor[watcher]`
+
+#### Stats dashboard with history
+- Daily snapshots at `~/.cc-janitor/history/<date>.json`
+- `cc-janitor stats [--since 30d] [--format text|json|csv]`
+- `cc-janitor stats snapshot` (called by Phase 2 context-audit job)
+- TUI Audit tab gains stats sub-pane with ASCII sparklines (toggle: `s`)
+- `context-audit` scheduled-job template now writes the new schema.
+  Existing crontab entries referencing `cc-janitor context cost --json`
+  continue to work and are read by `stats` as legacy `cost.jsonl`. Run
+  `cc-janitor schedule remove cc-janitor-context-audit && cc-janitor
+  schedule add context-audit` to upgrade.
+
+#### Export/import config bundle
+- `cc-janitor config export <bundle.tar.gz> [--include-memory]`
+- `cc-janitor config import <bundle.tar.gz> [--dry-run] [--force]`
+- Hard exclusion of `settings.local.json`, `.env`, `credentials.json`
+- Dry-run-first guard (mirrors scheduler pattern); backup-before-overwrite
+- SHA-256 manifest verified on import
+
+#### Shell completions
+- `cc-janitor completions install [bash|zsh|fish|powershell]`
+- `cc-janitor completions show <shell>`
+
+#### Quality
+- ~40 new unit and integration tests (202 passing total)
+- New TUI snapshot test for Source-filter dropdown
+- New TUI snapshot test for Audit-tab stats sub-pane
+- Cross-platform watcher tested via `monkeypatch.setattr("sys.platform", ...)`
+
+#### Documentation
+- 5 new cookbook recipes (monorepo, watcher, stats, bundle, completions)
+- CC_USAGE.md updated with Phase 3 read-only/mutating split
+- README/README.ru get Phase 3 feature group
+
 ## [0.2.0] — 2026-05-09
 
 ### Added — Phase 2

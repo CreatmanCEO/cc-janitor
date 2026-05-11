@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterator, Literal
+from typing import Literal
 
 ScopeKind = Literal["real", "nested", "junk"]
 
@@ -66,7 +67,7 @@ def _max_mtime_and_size(root: Path) -> tuple[datetime, int]:
         total += st.st_size
     if max_mt == 0.0:
         max_mt = root.stat().st_mtime
-    return datetime.fromtimestamp(max_mt, tz=timezone.utc), total
+    return datetime.fromtimestamp(max_mt, tz=UTC), total
 
 
 def _is_inside_skip_dir(path: Path, root: Path | None) -> bool:
@@ -151,5 +152,5 @@ def discover_locations(
         if scope_filter and loc.scope_kind not in scope_filter:
             continue
         out.append(loc)
-    out.sort(key=lambda l: (l.scope_kind, str(l.path)))
+    out.sort(key=lambda loc: (loc.scope_kind, str(loc.path)))
     return out

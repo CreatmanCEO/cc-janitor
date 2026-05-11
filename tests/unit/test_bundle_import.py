@@ -62,7 +62,7 @@ def test_import_refuses_on_corrupt_archive(mock_claude_home, tmp_path, monkeypat
     out2 = tmp_path / "tampered.tar.gz"
     # Corrupt the gzip stream in the middle.
     out2.write_bytes(raw[:100] + b"\x00" * 50 + raw[150:])
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017 — corrupt bundle may raise various types
         import_bundle(out2, dry_run=False, force=True)
 
 

@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from typer.testing import CliRunner
 
@@ -21,7 +21,7 @@ def test_doctor_reports_running_watcher(monkeypatch, tmp_path):
     monkeypatch.setenv("CC_JANITOR_HOME", str(tmp_path))
     s = WatcherStatus(
         pid=os.getpid(),  # alive!
-        started_at=datetime.now(timezone.utc),
+        started_at=datetime.now(UTC),
         watching_paths=[],
         interval_seconds=30,
         marker_writes_count=7,

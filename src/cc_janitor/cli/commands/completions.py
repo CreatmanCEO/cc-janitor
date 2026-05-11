@@ -24,11 +24,11 @@ def _generate(shell: str) -> str:
     regardless of how cc-janitor was launched (python -m, console script,
     pytest)."""
     # Lazy import to avoid module-level circular import with cli.__init__.
-    from .. import app as root_app
-
     # Typer's app exposes the underlying Click group lazily; fetching it
     # via main() construction path:
     from typer.main import get_command
+
+    from .. import app as root_app
 
     click_cmd = get_command(root_app)
     cls = get_completion_class(shell)

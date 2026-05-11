@@ -8,7 +8,7 @@ import sys
 import time
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .state import get_paths
@@ -72,7 +72,7 @@ def is_pid_alive(pid: int) -> bool:
         return psutil.pid_exists(pid) and psutil.Process(pid).is_running()
     except ImportError:
         pass
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
     if sys.platform == "win32":
         # No psutil — best-effort via tasklist.
@@ -128,7 +128,7 @@ def run_watcher_once(
         s = read_status()
         if s is not None:
             s.marker_writes_count += 1
-            s.last_change_at = datetime.now(timezone.utc)
+            s.last_change_at = datetime.now(UTC)
             write_status(s)
     return changed
 
@@ -147,7 +147,7 @@ def run_watcher(memory_dirs: list[Path], interval: int) -> None:
             run_watcher_once(memory_dirs, last_mtimes)
         except KeyboardInterrupt:
             return
-        except Exception:  # noqa: BLE001
+        except Exception:
             time.sleep(interval)
 
 

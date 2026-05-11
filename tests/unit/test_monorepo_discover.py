@@ -1,6 +1,9 @@
 from pathlib import Path
+
 from cc_janitor.core.monorepo import (
-    MonorepoLocation, discover_locations, classify_location, SKIP_DIRS,
+    SKIP_DIRS,
+    classify_location,
+    discover_locations,
 )
 
 
@@ -8,7 +11,7 @@ def test_discover_finds_three(mock_claude_home, monkeypatch):
     root = mock_claude_home / "projects"
     monkeypatch.setenv("CC_JANITOR_HOME", str(mock_claude_home / ".cc-janitor"))
     locs = discover_locations(root, include_junk=True)
-    paths = {l.path.relative_to(root) for l in locs}
+    paths = {loc.path.relative_to(root) for loc in locs}
     assert Path("real-proj/.claude") in paths
     assert Path("real-proj/node_modules/es-abstract/.claude") in paths
     assert Path("scratch/.claude") in paths
@@ -55,5 +58,5 @@ def test_skip_dirs_default_includes_node_modules():
 def test_default_excludes_junk(mock_claude_home):
     root = mock_claude_home / "projects"
     locs = discover_locations(root, include_junk=False)
-    kinds = {l.scope_kind for l in locs}
+    kinds = {loc.scope_kind for loc in locs}
     assert "junk" not in kinds

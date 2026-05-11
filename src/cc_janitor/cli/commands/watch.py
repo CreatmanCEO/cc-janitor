@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
@@ -77,7 +77,7 @@ def start(
         w.write_status(
             w.WatcherStatus(
                 pid=pid,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
                 watching_paths=dirs,
                 interval_seconds=interval,
                 marker_writes_count=0,

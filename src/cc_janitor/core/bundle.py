@@ -10,7 +10,7 @@ import shutil
 import tarfile
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -115,7 +115,7 @@ def export_bundle(out_path: Path, *, include_memory: bool = False) -> int:
         })
     manifest = {
         "version": 1,
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
         "host": platform.node(),
         "cc_janitor_version": "0.3.0.dev0",
         "files": files_meta,
@@ -186,7 +186,7 @@ def import_bundle(
             raise ValueError(
                 f"Unsupported bundle version: {manifest.get('version')}"
             )
-        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+        ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
         backup_root = get_paths().backups / f"import-{ts}"
 
         for entry in manifest["files"]:

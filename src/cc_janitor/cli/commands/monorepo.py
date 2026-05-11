@@ -21,26 +21,26 @@ def scan(
     if json_out:
         typer.echo(json.dumps([
             {
-                "path": str(l.path),
-                "scope_kind": l.scope_kind,
-                "has_settings": l.has_settings,
-                "has_skills": l.has_skills,
-                "has_hooks": l.has_hooks,
-                "has_mcp": l.has_mcp,
-                "size_bytes": l.size_bytes,
-                "last_modified": l.last_modified.isoformat(),
-                "project_marker": l.project_marker,
+                "path": str(loc.path),
+                "scope_kind": loc.scope_kind,
+                "has_settings": loc.has_settings,
+                "has_skills": loc.has_skills,
+                "has_hooks": loc.has_hooks,
+                "has_mcp": loc.has_mcp,
+                "size_bytes": loc.size_bytes,
+                "last_modified": loc.last_modified.isoformat(),
+                "project_marker": loc.project_marker,
             }
-            for l in locs
+            for loc in locs
         ], indent=2))
         return
     typer.echo(f"{'KIND':<8} {'SETTINGS':<10} {'HOOKS':<7} {'PATH'}")
-    for l in locs:
+    for loc in locs:
         typer.echo(
-            f"{l.scope_kind:<8} "
-            f"{'yes' if l.has_settings else '-':<10} "
-            f"{'yes' if l.has_hooks else '-':<7} "
-            f"{l.path}"
+            f"{loc.scope_kind:<8} "
+            f"{'yes' if loc.has_settings else '-':<10} "
+            f"{'yes' if loc.has_hooks else '-':<7} "
+            f"{loc.path}"
         )
 
 

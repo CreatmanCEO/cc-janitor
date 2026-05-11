@@ -56,5 +56,5 @@ async def test_perms_source_filter_options_include_static_entries(mock_claude_ho
     async with app.run_test() as pilot:
         await pilot.pause()
         sel = app.query_one("#perms-source-filter", Select)
-        values = {value for _label, value in sel._options}  # noqa: SLF001
+        values = {value for _label, value in sel._options}
         assert {"real", "real+nested", "all"}.issubset(values)

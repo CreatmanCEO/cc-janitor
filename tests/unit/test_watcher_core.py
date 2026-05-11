@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from cc_janitor.core.watcher import (
@@ -15,7 +15,7 @@ def test_status_round_trip(tmp_path, monkeypatch):
     monkeypatch.setenv("CC_JANITOR_HOME", str(tmp_path))
     s = WatcherStatus(
         pid=4711,
-        started_at=datetime.now(timezone.utc),
+        started_at=datetime.now(UTC),
         watching_paths=[tmp_path / "a"],
         interval_seconds=30,
         marker_writes_count=0,
