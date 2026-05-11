@@ -20,7 +20,7 @@ from .commands.trash import trash_app
 from .commands.undo import undo as _undo
 from .commands.watch import watch_app
 
-__VERSION__ = "0.3.3"
+__VERSION__ = "0.4.0.dev0"
 
 app = typer.Typer(no_args_is_help=False, help="cc-janitor — Tidy Claude Code")
 
