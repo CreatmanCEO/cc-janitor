@@ -69,8 +69,9 @@ def edit_cmd(name: str):
 @memory_app.command("archive")
 def archive_cmd(name: str):
     p = _resolve(name)
-    with audit_action("memory archive", [str(p)]):
+    with audit_action("memory archive", [str(p)]) as changed:
         dst = archive_memory_file(p)
+        changed["archived"] = {"original": str(p), "archive_path": str(dst)}
     typer.echo(f"archived to {dst}")
 
 
@@ -80,6 +81,24 @@ def move_type_cmd(name: str, new_type: str):
     with audit_action("memory move-type", [str(p), new_type]):
         move_memory_type(p, new_type)
     typer.echo(f"moved {p.name} -> type={new_type}")
+
+
+@memory_app.command("delete")
+def delete_cmd(name: str):
+    """Soft-delete a memory file (recoverable via ``cc-janitor trash restore``)."""
+    from ...core.safety import NotConfirmedError, require_confirmed, soft_delete
+    from ...core.state import get_paths
+
+    p = _resolve(name)
+    with audit_action("memory delete", [str(p)]) as changed:
+        try:
+            require_confirmed()
+            tid = soft_delete(p, paths=get_paths())
+        except NotConfirmedError as e:
+            typer.echo(str(e), err=True)
+            raise typer.Exit(code=2) from e
+        changed["deleted"] = [{"path": str(p), "trash_id": tid}]
+    typer.echo(f"deleted {p.name} -> trash:{tid}")
 
 
 @memory_app.command("find-duplicates")

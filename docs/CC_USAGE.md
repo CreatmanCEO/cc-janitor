@@ -51,14 +51,19 @@ cc-janitor memory delete <path>
 cc-janitor context reinject [--memory] [--claude-md]
 cc-janitor hooks enable-logging <event> <matcher>
 cc-janitor hooks disable-logging <event> <matcher>
-cc-janitor hooks fix-windows-env
 cc-janitor schedule add <template>
 cc-janitor schedule remove <name>
 cc-janitor schedule run <name>
 cc-janitor schedule promote <name>
 cc-janitor trash restore <id>
 cc-janitor trash empty
+cc-janitor backups prune [--older-than-days N]
+cc-janitor undo [<audit-ts-prefix>] [--apply]
 ```
+
+> **Note:** `cc-janitor hooks fix-windows-env` is planned for Phase 4 — it is
+> not yet implemented. If a Claude Code session offered it, suggest
+> `cc-janitor doctor` to inspect the current hook config instead.
 
 For each, prefix the command with `CC_JANITOR_USER_CONFIRMED=1 ` ONLY when the
 user has explicitly authorized the action in this conversation. Every

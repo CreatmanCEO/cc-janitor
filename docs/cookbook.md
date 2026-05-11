@@ -195,12 +195,14 @@ CC_JANITOR_USER_CONFIRMED=1 cc-janitor hooks enable-logging PreToolUse Bash
 settings layers (user, project, project-local, enterprise) with source
 attribution. `validate` returns schema errors. `simulate` runs the actual
 hook command with a real stdin payload and prints exit code + duration.
-`enable-logging` wraps the hook in a reversible logger that writes
-`~/.cc-janitor/hooks.log` for every invocation.
+`enable-logging` wraps the hook in a reversible logger that writes a
+per-event file inside `~/.cc-janitor/hooks-log/` (e.g.
+`~/.cc-janitor/hooks-log/PreToolUse.log`) for every invocation.
 
 **Next step:** Trigger the matching tool inside Claude Code and `tail
-~/.cc-janitor/hooks.log`. When done, run `cc-janitor hooks disable-logging
-PreToolUse Bash` — the wrapper unwraps cleanly via a sentinel marker.
+~/.cc-janitor/hooks-log/PreToolUse.log`. When done, run
+`cc-janitor hooks disable-logging PreToolUse Bash` — the wrapper unwraps
+cleanly via a sentinel marker.
 
 ---
 
@@ -280,9 +282,9 @@ unconditionally — no opt-out. Copy the tar.gz to your Mac (USB,
 scp, cloud-drive — whatever). On the Mac:
 
     cc-janitor config import ~/Downloads/cc-janitor-bundle.tar.gz
-    # DRY RUN: would write 17 files. Re-run with --force to apply.
+    # DRY RUN: would write 17 files. Re-run with --apply to apply.
     CC_JANITOR_USER_CONFIRMED=1 \
-      cc-janitor config import ~/Downloads/cc-janitor-bundle.tar.gz --force
+      cc-janitor config import ~/Downloads/cc-janitor-bundle.tar.gz --apply
 
 Existing destination files that differ from the bundle are backed up
 to `~/.cc-janitor/backups/import-<ts>/` before overwrite.

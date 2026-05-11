@@ -17,9 +17,10 @@ from .commands.schedule import schedule_app
 from .commands.session import session_app
 from .commands.stats import stats_app
 from .commands.trash import trash_app
+from .commands.undo import undo as _undo
 from .commands.watch import watch_app
 
-__VERSION__ = "0.3.2"
+__VERSION__ = "0.3.3"
 
 app = typer.Typer(no_args_is_help=False, help="cc-janitor — Tidy Claude Code")
 
@@ -61,3 +62,4 @@ app.add_typer(trash_app, name="trash")
 app.add_typer(watch_app, name="watch")
 app.command("doctor", help="Health check")(_doctor)
 app.command("install-hooks", help="Install reinject PreToolUse hook")(_install_hooks)
+app.command("undo", help="Reverse the most recent reversible mutation")(_undo)
