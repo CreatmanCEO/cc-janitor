@@ -19,7 +19,7 @@ import typer
 
 from ...core import dream_diff as dd
 from ...core import dream_doctor as ddoc
-from ...core.dream_snapshot import _dream_root, history
+from ...core.dream_snapshot import _dream_root, history, pair_paths
 from ...core.safety import require_confirmed
 from ...core.state import get_paths
 from .._audit import audit_action
@@ -30,7 +30,16 @@ dream_app = typer.Typer(
 )
 
 
-@dream_app.command("history")
+def _pair_storage(pair_id: str) -> str:
+    root = _dream_root()
+    if (root / f"{pair_id}-pre").exists():
+        return "dir"
+    if (root / f"{pair_id}.tar.gz").exists():
+        return "tar"
+    return "gone"
+
+
+@dream_app.command("history", help="List recorded Dream snapshot pairs.")
 def history_cmd(
     project: str | None = typer.Option(None, "--project"),
     json_out: bool = typer.Option(False, "--json"),
@@ -41,12 +50,16 @@ def history_cmd(
     if json_out:
         typer.echo(json.dumps([asdict(p) for p in items], indent=2))
         return
-    typer.echo(f"{'PAIR_ID':<32} {'PROJECT':<20} {'DFILES':<8} {'DLINES':<8}")
+    typer.echo(
+        f"{'PAIR_ID':<32} {'PROJECT':<20} "
+        f"{'DFILES':<8} {'DLINES':<8} {'STORAGE':<8}"
+    )
     for p in items:
         typer.echo(
             f"{p.pair_id:<32} {p.project_slug:<20} "
             f"{p.file_count_delta or 0!s:<8} "
-            f"{p.line_count_delta or 0!s:<8}"
+            f"{p.line_count_delta or 0!s:<8} "
+            f"{_pair_storage(p.pair_id):<8}"
         )
 
 
@@ -57,7 +70,7 @@ def _find_pair(pair_id: str):
     return None
 
 
-@dream_app.command("diff")
+@dream_app.command("diff", help="Show file deltas between pre and post snapshots.")
 def diff_cmd(
     pair_id: str,
     file: str | None = typer.Option(None, "--file"),
@@ -67,41 +80,39 @@ def diff_cmd(
     if pair is None:
         typer.echo(f"No such pair: {pair_id}")
         raise typer.Exit(code=1)
-    pre = _dream_root() / f"{pair_id}-pre"
-    post = _dream_root() / f"{pair_id}-post"
-    if not pre.exists() or not post.exists():
-        typer.echo(
-            "Snapshot mirrors missing (tar storage not yet supported in dry-run)."
-        )
-        raise typer.Exit(code=1)
-    diff = dd.compute_diff(pre, post)
-    if file:
-        diff.deltas = [d for d in diff.deltas if str(d.rel_path) == file]
-    if json_out:
-        typer.echo(json.dumps({
-            "summary": diff.summary,
-            "deltas": [{
-                "rel_path": str(d.rel_path),
-                "status": d.status,
-                "lines_added": d.lines_added,
-                "lines_removed": d.lines_removed,
-                "unified_diff": d.unified_diff,
-            } for d in diff.deltas],
-        }, indent=2))
-        return
-    typer.echo(f"Pair: {pair_id}  Summary: {diff.summary}")
-    for d in diff.deltas:
-        typer.echo(
-            f"  [{d.status:<9}] {d.rel_path}  "
-            f"+{d.lines_added} -{d.lines_removed}"
-        )
-    for d in diff.deltas:
-        if d.unified_diff:
-            typer.echo("")
-            typer.echo(d.unified_diff)
+    try:
+        with pair_paths(pair_id) as (pre, post):
+            diff = dd.compute_diff(pre, post)
+            if file:
+                diff.deltas = [d for d in diff.deltas if str(d.rel_path) == file]
+            if json_out:
+                typer.echo(json.dumps({
+                    "summary": diff.summary,
+                    "deltas": [{
+                        "rel_path": str(d.rel_path),
+                        "status": d.status,
+                        "lines_added": d.lines_added,
+                        "lines_removed": d.lines_removed,
+                        "unified_diff": d.unified_diff,
+                    } for d in diff.deltas],
+                }, indent=2))
+                return
+            typer.echo(f"Pair: {pair_id}  Summary: {diff.summary}")
+            for d in diff.deltas:
+                typer.echo(
+                    f"  [{d.status:<9}] {d.rel_path}  "
+                    f"+{d.lines_added} -{d.lines_removed}"
+                )
+            for d in diff.deltas:
+                if d.unified_diff:
+                    typer.echo("")
+                    typer.echo(d.unified_diff)
+    except FileNotFoundError as e:
+        typer.echo(str(e))
+        raise typer.Exit(code=1) from e
 
 
-@dream_app.command("doctor")
+@dream_app.command("doctor", help="Run Dream safety-net health checks.")
 def doctor_cmd(json_out: bool = typer.Option(False, "--json")) -> None:
     checks = ddoc.run_checks()
     if json_out:
@@ -113,7 +124,9 @@ def doctor_cmd(json_out: bool = typer.Option(False, "--json")) -> None:
         typer.echo(f"  [{c.severity:<4}] {c.title}: {c.message}")
 
 
-@dream_app.command("rollback")
+@dream_app.command(
+    "rollback", help="Restore memory dir to a pre-snapshot state."
+)
 def rollback_cmd(
     pair_id: str,
     apply: bool = typer.Option(
@@ -124,49 +137,60 @@ def rollback_cmd(
     if pair is None:
         typer.echo(f"No such pair: {pair_id}")
         raise typer.Exit(code=1)
-    pre = _dream_root() / f"{pair_id}-pre"
     target = Path(pair.claude_memory_dir)
     if not apply:
-        typer.echo(f"[dry-run] Would restore {pre} -> {target}")
+        typer.echo(f"[dry-run] Would restore pre-snapshot of {pair_id} -> {target}")
         typer.echo(
             "          Current target post-state would be soft-deleted to trash."
         )
+        typer.echo(
+            "          Any Dream cycles applied AFTER this snapshot will be "
+            "discarded; reversible via `cc-janitor undo`."
+        )
         return
     require_confirmed()
-    with audit_action(
-        cmd="dream rollback", args=[pair_id, "--apply"], mode="cli",
-    ) as changed:
-        trash = (
-            get_paths().home / ".trash"
-            / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-            / f"dream-rollback-{pair_id}"
-        )
-        trash.mkdir(parents=True, exist_ok=True)
-        if target.exists():
-            for f in target.rglob("*"):
-                if f.is_file():
-                    rel = f.relative_to(target)
-                    out = trash / rel
-                    out.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.move(str(f), str(out))
-        target.mkdir(parents=True, exist_ok=True)
-        for f in pre.rglob("*"):
-            if f.is_file():
-                rel = f.relative_to(pre)
-                out = target / rel
-                out.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(f, out)
-        changed["pair_id"] = pair_id
-        changed["files_restored"] = sum(
-            1 for _ in pre.rglob("*") if _.is_file()
-        )
-        changed["trash_path"] = str(trash)
+    try:
+        with pair_paths(pair_id) as (pre, _post):
+            with audit_action(
+                cmd="dream rollback", args=[pair_id, "--apply"], mode="cli",
+            ) as changed:
+                trash = (
+                    get_paths().home / ".trash"
+                    / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+                    / f"dream-rollback-{pair_id}"
+                )
+                trash.mkdir(parents=True, exist_ok=True)
+                if target.exists():
+                    for f in target.rglob("*"):
+                        if f.is_file():
+                            rel = f.relative_to(target)
+                            out = trash / rel
+                            out.parent.mkdir(parents=True, exist_ok=True)
+                            shutil.move(str(f), str(out))
+                target.mkdir(parents=True, exist_ok=True)
+                for f in pre.rglob("*"):
+                    if f.is_file():
+                        rel = f.relative_to(pre)
+                        out = target / rel
+                        out.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(f, out)
+                changed["pair_id"] = pair_id
+                changed["files_restored"] = sum(
+                    1 for _ in pre.rglob("*") if _.is_file()
+                )
+                changed["trash_path"] = str(trash)
+                changed["trash_id"] = trash.parent.name
+                changed["target"] = str(target)
+    except FileNotFoundError as e:
+        typer.echo(str(e))
+        raise typer.Exit(code=1) from e
     typer.echo(
         f"Restored {pair_id}; previous state preserved in {trash}."
     )
+    typer.echo("Reversible via `cc-janitor undo --apply`.")
 
 
-@dream_app.command("prune")
+@dream_app.command("prune", help="Drop Dream artifacts older than N days.")
 def prune_cmd(
     older_than_days: int = typer.Option(30, "--older-than-days"),
     apply: bool = typer.Option(False, "--apply"),
