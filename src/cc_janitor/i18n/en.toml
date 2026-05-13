@@ -79,6 +79,9 @@ stale = "stale"
 started = "Watcher started"
 stopped = "Watcher stopped"
 
+[audit]
+title = "Audit"
+
 [stats]
 title = "Stats"
 sessions = "Sessions"

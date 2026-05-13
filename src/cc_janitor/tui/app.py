@@ -32,19 +32,19 @@ class CcJanitorApp(App):
             with TabPane(t("context.title"), id="context"):
                 from .screens.context_screen import ContextScreen
                 yield ContextScreen()
-            with TabPane("Memory", id="memory"):
+            with TabPane(t("memory.title"), id="memory"):
                 from .screens.memory_screen import MemoryScreen
                 yield MemoryScreen()
-            with TabPane("Hooks", id="hooks"):
+            with TabPane(t("hooks.title"), id="hooks"):
                 from .screens.hooks_screen import HooksScreen
                 yield HooksScreen()
-            with TabPane("Schedule", id="schedule"):
+            with TabPane(t("schedule.title"), id="schedule"):
                 from .screens.schedule_screen import ScheduleScreen
                 yield ScheduleScreen()
-            with TabPane("Audit", id="audit"):
+            with TabPane(t("audit.title"), id="audit"):
                 from .screens.audit_screen import AuditScreen
                 yield AuditScreen()
-            with TabPane("Dream", id="dream"):
+            with TabPane(t("dream.title"), id="dream"):
                 from .screens.dream_screen import DreamScreen
                 yield DreamScreen()
         yield Footer()

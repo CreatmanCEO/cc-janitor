@@ -79,6 +79,9 @@ stale = "устарел"
 started = "Наблюдатель запущен"
 stopped = "Наблюдатель остановлен"
 
+[audit]
+title = "Аудит"
+
 [stats]
 title = "Статистика"
 sessions = "Сессии"
