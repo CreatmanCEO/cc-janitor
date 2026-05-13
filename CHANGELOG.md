@@ -7,6 +7,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] — 2026-05-13
+
+### Fixed (Critical — post-Phase-4 UX audit)
+
+- **C1: tar-compaction no longer orphans Dream pairs.** `dream diff` and
+  `dream rollback` previously read `<pair_id>-pre`/`<pair_id>-post`
+  mirrors directly; after the weekly `dream-tar-compact` template ran,
+  raw mirrors were removed and the pair became permanently un-diffable
+  and un-rollback-able. New `core.dream_snapshot.resolve_pair_paths()`
+  + `pair_paths()` context manager returns raw mirror dirs when present,
+  else transparently extracts `<pair_id>.tar.gz` to a tempdir with
+  guaranteed cleanup. `dream history` now shows a `STORAGE` column
+  (`dir` / `tar`).
+- **C2: `backups prune` no longer eats Dream restore points.** The
+  command walked `~/.cc-janitor/backups/*` unconditionally; the scheduled
+  `backup-rotate` job (default 30d cutoff) silently wiped Dream pair
+  mirrors that the user expected to keep. Prune now partitions
+  `backups/dream/` off by default; opt back in with `--include-dream`
+  (per-pair granularity, each mirror or tar treated as its own pruning
+  unit). `backups list` groups output by `[settings]` / `[dream]`.
+- **C3: TUI hook-logging toggle no longer silently fails.**
+  `tui/screens/hooks_screen.py:action_toggle_logging` called
+  `enable_logging`/`disable_logging` directly; the core's
+  `require_confirmed()` raised `NotConfirmedError`, the TUI caught it and
+  reported "Failed: ..." — toggling was broken since 0.3.2. Now wraps the
+  mutation in `ConfirmModal` + `tui_confirmed()` + `audit_action(mode="tui")`,
+  matching the memory/schedule screen pattern.
+- **C4: Memory TUI bindings no longer silent no-ops.** `e`/`a`/`m`/`f`
+  were declared in `BINDINGS` but only `r` was implemented. Dropped `e`
+  (edit) and `m` (move-type) until the editor-spawn / Select-widget work
+  lands (5.x). Implemented `a` (archive via `ConfirmModal`, reversible
+  through `cc-janitor undo`) and `f` (toggle duplicate-line preview).
+  Final BINDINGS = `{r, a, f}`; test asserts every declared key has a
+  matching `action_*`.
+- **C5: `stats sleep-hygiene` now surfaces contradicting pair content.**
+  `core.sleep_hygiene` already computed `contradicting_pairs` as
+  `list[(subject, [paths])]`; both JSON and text output dropped the
+  content, leaving Persona-9 (Diagnostician) with only the count. JSON
+  now includes `contradicting_pairs[].{subject, files}`. Text prints up
+  to 10 pairs as `subject — file1, file2` with `... (N more)` footer.
+
+### Added
+
+- **`cc-janitor undo` reverses `dream rollback`.** `dream rollback`
+  already recorded the trash bucket containing the pre-rollback memory
+  state on its audit entry; `undo` now reads `changed["trash_path"]` +
+  `changed["target"]` to restore. Rollback output now prints
+  "Reversible via `cc-janitor undo --apply`."
+- **`cc-janitor config init [--force]`.** Scaffolds
+  `~/.cc-janitor/config.toml` with documented defaults for
+  `[dream_doctor]`, `[snapshots]`, `[hygiene]`. Refuses to overwrite
+  unless `--force`.
+- **i18n for all 8 TUI tab labels.** Previously `Memory`/`Hooks`/
+  `Schedule`/`Audit`/`Dream` were hardcoded English; F2 language toggle
+  flipped only the first 3. Adds `[audit]` section to en.toml + ru.toml
+  and routes every `TabPane` label through `t("<tab>.title")`.
+- `dream rollback` dry-run now warns that any Dream cycles applied after
+  the chosen snapshot will be discarded.
+- `dream` subcommands now carry one-line `help=` strings (visible in
+  `cc-janitor dream --help`).
+
+### Fixed (other)
+
+- **Malformed `config.toml` now warns to stderr** instead of silently
+  falling back to defaults. De-duped per process so multi-command runs
+  don't spam the same warning.
+- README install block no longer warns "not on PyPI" (M4 from prior
+  audits). Install snippet uses `uv tool install cc-janitor` /
+  `pipx install cc-janitor`.
+- `README.ru.md` resynced — was still describing Phase 1 only; now
+  mirrors current README.md content (Phases 1–4, install, safety,
+  roadmap).
+- `docs/cookbook.md` Phase-3 recipes (sections 11–15) reformatted to the
+  `Problem:` / `Commands:` / `Expected output:` / `Next step:` block
+  style used by Phase 1, 2, and 4 recipes.
+
+### Deferred to 0.4.3
+
+- `dream doctor` linking to `watch start --dream` when Auto Dream is
+  disabled (Journey M discoverability).
+- `doctor` surfacing Dream / `config.toml` / `sys.platform` rows
+  (Important #9 / M7).
+- Mutating Dream TUI actions (rollback / prune binding on Dream tab).
+- `dream history` `WHEN` column.
+- I10/I11 remaining surface (sessions and perms TUI write paths).
+
 ## [0.4.1] — 2026-05-13
 
 ### Fixed

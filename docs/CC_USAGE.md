@@ -33,6 +33,7 @@ cc-janitor schedule list
 cc-janitor schedule audit
 cc-janitor audit list [--since][--cmd][--failed][--json]
 cc-janitor trash list
+cc-janitor backups list
 ```
 
 ## Mutating commands (require user confirmation)
@@ -57,9 +58,14 @@ cc-janitor schedule run <name>
 cc-janitor schedule promote <name>
 cc-janitor trash restore <id>
 cc-janitor trash empty
-cc-janitor backups prune [--older-than-days N]
+cc-janitor backups prune [--older-than-days N] [--include-dream]
+cc-janitor config init [--force]
 cc-janitor undo [<audit-ts-prefix>] [--apply]
 ```
+
+`backups prune` skips the `~/.cc-janitor/backups/dream/` subtree by default;
+use `--include-dream` only when the user has explicitly asked to wipe Dream
+restore points. Otherwise direct them to `cc-janitor dream prune`.
 
 > **Note:** `cc-janitor hooks fix-windows-env` is planned for Phase 4 — it is
 > not yet implemented. If a Claude Code session offered it, suggest

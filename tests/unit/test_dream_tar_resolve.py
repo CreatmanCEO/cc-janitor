@@ -94,7 +94,7 @@ def test_pair_paths_contextmanager(tmp_path, monkeypatch):
     _seed(tmp_path, monkeypatch)
     _tar_pair("20260513T120000Z-proj")
     tmp_marker: list[Path] = []
-    with pair_paths("20260513T120000Z-proj") as (pre, post):
+    with pair_paths("20260513T120000Z-proj") as (pre, _post):
         assert pre.is_dir()
         tmp_marker.append(pre.parent)
     assert not tmp_marker[0].exists()

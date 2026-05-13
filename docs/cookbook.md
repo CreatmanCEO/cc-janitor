@@ -231,82 +231,125 @@ items per run) so a runaway template can't wipe a whole tree.
 `cc-janitor audit list --cmd schedule-run --json`. Adjust `CC_JANITOR_HARD_CAP`
 if your project legitimately needs more than 200 deletions per run.
 
-## Find every `.claude/` directory on my machine
+## 11. Find every `.claude/` directory on my machine
 
-I want to see every `.claude/` directory anywhere on disk, including
-the junk that ships inside `node_modules` of vendored packages.
+**Problem:** You want to see every `.claude/` directory anywhere on
+disk, including the junk shipped inside `node_modules` of vendored
+packages (upstream Issues #37344, #35561, #18192, #40640).
 
-    cc-janitor monorepo scan --root ~ --include-junk
+**Commands:**
 
-Output is a table with kind (real/nested/junk), settings/hooks flags,
-and full path. Use `--json` for piping into other tools. Closes
-upstream Issues #37344, #35561, #18192, #40640.
+```bash
+cc-janitor monorepo scan --root ~ --include-junk
+cc-janitor monorepo scan --root ~ --json  # for piping
+```
 
-## Auto-reinject memory after every edit
+**Expected output:** Table with kind (real/nested/junk), settings/hooks
+flags, and full path.
 
-I keep editing `~/.claude/CLAUDE.md` outside the TUI and forgetting
-to `cc-janitor context reinject`. Run a background watcher that polls
-my memory dirs every 30 seconds and writes the marker on change:
-
-    CC_JANITOR_USER_CONFIRMED=1 cc-janitor watch start
-    cc-janitor watch status        # confirm running
-    cc-janitor doctor              # see "Watcher: running (3 reinjects)"
-    CC_JANITOR_USER_CONFIRMED=1 cc-janitor watch stop
-
-Opt-in only. Never auto-started. Uses mtime polling — no platform-
-specific FS-event APIs.
-
-## Track context cost over time
-
-Every day at 00:05 the `context-audit` scheduled job records a snapshot
-of session count, perm rule count, context tokens, trash size, and
-audit-log delta to `~/.cc-janitor/history/<date>.json`. View the
-trend:
-
-    cc-janitor stats --since 30d
-    cc-janitor stats --since 7d --format csv > /tmp/last-week.csv
-
-The TUI Audit tab shows the same data as ASCII sparklines (toggle
-with `s`). After running `cc-janitor perms prune` you can see the
-perm-rules count drop in the very next snapshot.
-
-## Move my cc-janitor config from Windows to my Mac
-
-On the Windows desktop:
-
-    cc-janitor config export ~/Desktop/cc-janitor-bundle.tar.gz \
-                            --include-memory
-
-The bundle excludes `settings.local.json` and `.env` files
-unconditionally — no opt-out. Copy the tar.gz to your Mac (USB,
-scp, cloud-drive — whatever). On the Mac:
-
-    cc-janitor config import ~/Downloads/cc-janitor-bundle.tar.gz
-    # DRY RUN: would write 17 files. Re-run with --apply to apply.
-    CC_JANITOR_USER_CONFIRMED=1 \
-      cc-janitor config import ~/Downloads/cc-janitor-bundle.tar.gz --apply
-
-Existing destination files that differ from the bundle are backed up
-to `~/.cc-janitor/backups/import-<ts>/` before overwrite.
-
-## Enable tab completion
-
-    # bash
-    cc-janitor completions show bash > ~/.bash_completion.d/cc-janitor
-
-    # zsh
-    cc-janitor completions show zsh > ~/.zfunc/_cc-janitor
-
-    # PowerShell
-    cc-janitor completions show powershell >> $PROFILE
-
-Or let cc-janitor write the file in the conventional location for you:
-
-    CC_JANITOR_USER_CONFIRMED=1 cc-janitor completions install bash
+**Next step:** Filter discovery in other commands via `--scope`, e.g.
+`cc-janitor perms list --scope nested`.
 
 ---
 
-## 11. Auto Dream just rewrote my memory — how do I see what changed?
+## 12. Auto-reinject memory after every edit
+
+**Problem:** You keep editing `~/.claude/CLAUDE.md` outside the TUI and
+forgetting `cc-janitor context reinject`.
+
+**Commands:**
+
+```bash
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor watch start
+cc-janitor watch status        # confirm running
+cc-janitor doctor              # see "Watcher: running (3 reinjects)"
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor watch stop
+```
+
+**Expected output:** `watch start` daemonises a polling loop (30 s
+interval, mtime-based, no native FS-event API). `watch status` shows the
+PID and reinject count.
+
+**Next step:** Pair with `cc-janitor watch start --dream` to also
+snapshot around Auto Dream cycles (recipe 11–13).
+
+---
+
+## 13. Track context cost over time
+
+**Problem:** You want a daily trend line for sessions, perm rules,
+context tokens, trash size.
+
+**Commands:**
+
+```bash
+# The scheduled context-audit job writes ~/.cc-janitor/history/<date>.json
+cc-janitor stats --since 30d
+cc-janitor stats --since 7d --format csv > /tmp/last-week.csv
+```
+
+**Expected output:** Latest row plus ASCII sparklines. CSV format is
+ready to feed a spreadsheet.
+
+**Next step:** TUI Audit tab shows the same data as sparklines (toggle
+`s`). After `cc-janitor perms prune` you can see the rules count drop in
+the very next snapshot.
+
+---
+
+## 14. Move my cc-janitor config from Windows to my Mac
+
+**Problem:** You want to mirror Claude Code settings, hooks, and
+optionally memory across machines.
+
+**Commands:**
+
+```bash
+# On the source machine
+cc-janitor config export ~/Desktop/cc-janitor-bundle.tar.gz --include-memory
+
+# On the destination machine
+cc-janitor config import ~/Downloads/cc-janitor-bundle.tar.gz
+# DRY RUN: would write 17 files. Re-run with --apply to write.
+CC_JANITOR_USER_CONFIRMED=1 \
+  cc-janitor config import ~/Downloads/cc-janitor-bundle.tar.gz --apply
+```
+
+**Expected output:** Bundle is a tar.gz with a SHA-256 manifest.
+`settings.local.json`, `.env`, and `credentials.json` are excluded
+unconditionally. Existing destination files that differ are backed up to
+`~/.cc-janitor/backups/import-<ts>/` before overwrite.
+
+**Next step:** Scaffold a fresh `~/.cc-janitor/config.toml` on the new
+machine via `cc-janitor config init`.
+
+---
+
+## 15. Enable tab completion
+
+**Problem:** You want `<TAB>` to complete subcommands and flags.
+
+**Commands:**
+
+```bash
+# Print the script for inspection
+cc-janitor completions show bash
+cc-janitor completions show zsh
+cc-janitor completions show powershell
+
+# Or install in the conventional location
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor completions install bash
+```
+
+**Expected output:** `install` writes the script to
+`~/.bash_completion.d/cc-janitor` / `~/.zfunc/_cc-janitor` / the
+PowerShell profile.
+
+**Next step:** Restart your shell or `source` the file.
+
+---
+
+## 16. Auto Dream just rewrote my memory — how do I see what changed?
 
 **Problem:** Anthropic's Auto Dream rewrote `~/.claude/projects/*/memory/`
 during your last session. You want to know exactly which lines moved or
@@ -337,7 +380,7 @@ duplicate, and stale-date counts that drove Dream to mutate so much.
 
 ---
 
-## 12. Auto Dream is silently disabled — diagnose it
+## 17. Auto Dream is silently disabled — diagnose it
 
 **Problem:** You enabled `autoDreamEnabled` in `~/.claude/settings.json`
 but Dream never runs. Most common cause: a leftover `.consolidate-lock`
@@ -361,7 +404,7 @@ deciding.
 
 ---
 
-## 13. Set up scheduled snapshot-around-Dream so I never lose memory again
+## 18. Set up scheduled snapshot-around-Dream so I never lose memory again
 
 **Problem:** You want guaranteed pre/post snapshots around every Auto
 Dream cycle, with disk usage capped automatically.

@@ -127,7 +127,9 @@ def test_undo_dream_rollback_restores_memory(tmp_path, monkeypatch):
     from pathlib import Path
 
     from cc_janitor.core.dream_snapshot import (
-        record_pair, snapshot_post, snapshot_pre,
+        record_pair,
+        snapshot_post,
+        snapshot_pre,
     )
 
     monkeypatch.setenv("CC_JANITOR_HOME", str(tmp_path / "jhome"))
