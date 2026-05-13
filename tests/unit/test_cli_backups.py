@@ -69,6 +69,55 @@ def test_backups_prune_deletes_only_old(mock_claude_home, monkeypatch):
     assert (paths.backups / "young").exists()
 
 
+def _seed_dream_pair(home: Path, pair_id: str, *, age_days: float) -> Path:
+    """Create a dream pair mirror under backups/dream/ with given mtime."""
+    pair_dir = home / ".cc-janitor" / "backups" / "dream" / f"{pair_id}-pre"
+    pair_dir.mkdir(parents=True, exist_ok=True)
+    f = pair_dir / "MEMORY.md"
+    f.write_text("snapshot", encoding="utf-8")
+    mtime = time.time() - age_days * 86400
+    os.utime(f, (mtime, mtime))
+    return pair_dir
+
+
+def test_backups_prune_skips_dream(mock_claude_home, monkeypatch):
+    """C2: prune must not touch ~/.cc-janitor/backups/dream/* by default."""
+    monkeypatch.setenv("CC_JANITOR_USER_CONFIRMED", "1")
+    _seed_bucket(mock_claude_home, "old-settings", age_days=60)
+    _seed_dream_pair(mock_claude_home, "ancient-dream", age_days=400)
+    r = CliRunner().invoke(app, ["backups", "prune", "--older-than-days", "30"])
+    assert r.exit_code == 0
+    paths = get_paths()
+    assert not (paths.backups / "old-settings").exists()
+    # Dream subtree untouched
+    assert (paths.backups / "dream" / "ancient-dream-pre").exists()
+
+
+def test_backups_prune_include_dream_opt_in(mock_claude_home, monkeypatch):
+    """C2: --include-dream lets users explicitly nuke dream mirrors too."""
+    monkeypatch.setenv("CC_JANITOR_USER_CONFIRMED", "1")
+    _seed_dream_pair(mock_claude_home, "ancient-dream", age_days=400)
+    r = CliRunner().invoke(
+        app,
+        ["backups", "prune", "--older-than-days", "30", "--include-dream"],
+    )
+    assert r.exit_code == 0
+    paths = get_paths()
+    assert not (paths.backups / "dream").exists() or not list(
+        (paths.backups / "dream").iterdir()
+    )
+
+
+def test_backups_list_groups_by_kind(mock_claude_home):
+    """C2: backups list groups settings vs dream sections."""
+    _seed_bucket(mock_claude_home, "aaa", age_days=1)
+    _seed_dream_pair(mock_claude_home, "pair1", age_days=1)
+    r = CliRunner().invoke(app, ["backups", "list"])
+    assert r.exit_code == 0
+    assert "[settings]" in r.stdout
+    assert "[dream]" in r.stdout
+
+
 def test_backup_rotate_template_emits_valid_command():
     """Regression: 0.3.1's template emitted an unknown --backups flag."""
     from cc_janitor.core.schedule import TEMPLATES

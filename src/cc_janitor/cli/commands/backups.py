@@ -26,9 +26,19 @@ backups_app = typer.Typer(
 )
 
 
-@backups_app.command("list")
+def _classify_bucket(bucket: Path) -> str:
+    """Return ``dream`` for the Auto-Dream mirror subtree, else ``settings``.
+
+    The ``~/.cc-janitor/backups/dream/`` subtree holds per-pair pre/post
+    mirrors and tar archives. All other buckets are settings.json edit
+    backups keyed by sha1 of the source path.
+    """
+    return "dream" if bucket.name == "dream" else "settings"
+
+
+@backups_app.command("list", help="Group buckets by kind (settings / dream).")
 def list_cmd() -> None:
-    """List every backup bucket and its size + age."""
+    """List every backup bucket and its size + age, grouped by kind."""
     paths = get_paths()
     root = paths.backups
     if not root.exists():
@@ -38,17 +48,27 @@ def list_cmd() -> None:
     if not buckets:
         typer.echo("No backup buckets.")
         return
-    for bucket in buckets:
-        files = list(bucket.glob("*"))
-        if not files:
+    by_kind: dict[str, list[Path]] = {"settings": [], "dream": []}
+    for b in buckets:
+        by_kind[_classify_bucket(b)].append(b)
+    for kind in ("settings", "dream"):
+        bs = by_kind[kind]
+        if not bs:
             continue
-        newest_mtime = max(f.stat().st_mtime for f in files)
-        age_days = (datetime.now(UTC).timestamp() - newest_mtime) / 86400
-        total_bytes = sum(f.stat().st_size for f in files)
-        typer.echo(
-            f"{bucket.name}  files={len(files):<3}  "
-            f"size={total_bytes:>8}b  newest={age_days:.1f}d ago"
-        )
+        typer.echo(f"[{kind}]")
+        for bucket in bs:
+            files = list(bucket.glob("*"))
+            if not files:
+                continue
+            newest_mtime = max(f.stat().st_mtime for f in files)
+            age_days = (
+                datetime.now(UTC).timestamp() - newest_mtime
+            ) / 86400
+            total_bytes = sum(f.stat().st_size for f in files)
+            typer.echo(
+                f"  {bucket.name}  files={len(files):<3}  "
+                f"size={total_bytes:>8}b  newest={age_days:.1f}d ago"
+            )
 
 
 @backups_app.command("prune")
@@ -59,10 +79,20 @@ def prune_cmd(
         help="Delete backup buckets whose newest file is older than N days.",
     ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without deleting."),
+    include_dream: bool = typer.Option(
+        False,
+        "--include-dream",
+        help="Also prune Dream snapshot mirrors (default: skip — use `dream prune`).",
+    ),
 ) -> None:
-    """Permanently delete old backup buckets.
+    """Permanently delete old settings-backup buckets.
 
     A bucket is considered prunable when its NEWEST file is older than N days.
+    The ``~/.cc-janitor/backups/dream/`` subtree is partitioned off and skipped
+    by default — Dream snapshot mirrors have their own retention surface via
+    ``cc-janitor dream prune`` and ``backups tar-compact``. Pass
+    ``--include-dream`` to nuke everything (requires confirmation).
+
     Requires ``CC_JANITOR_USER_CONFIRMED=1`` unless ``--dry-run``.
     """
     paths = get_paths()
@@ -73,14 +103,31 @@ def prune_cmd(
 
     cutoff_ts = (datetime.now(UTC) - timedelta(days=older_than_days)).timestamp()
     targets: list = []
-    for bucket in sorted(p for p in root.iterdir() if p.is_dir()):
-        files = list(bucket.glob("*"))
+
+    def _consider(bucket: Path) -> None:
+        files = [f for f in bucket.rglob("*") if f.is_file()]
         if not files:
             targets.append(bucket)
-            continue
+            return
         newest = max(f.stat().st_mtime for f in files)
         if newest < cutoff_ts:
             targets.append(bucket)
+
+    for bucket in sorted(p for p in root.iterdir() if p.is_dir()):
+        if _classify_bucket(bucket) == "dream":
+            if not include_dream:
+                continue
+            # Treat each pair-mirror or tar as its own pruning unit.
+            for sub in sorted(bucket.iterdir()):
+                if sub.is_dir():
+                    _consider(sub)
+                elif sub.is_file():
+                    # Tar archives live as files directly under dream/.
+                    mtime = sub.stat().st_mtime
+                    if mtime < cutoff_ts:
+                        targets.append(sub)
+            continue
+        _consider(bucket)
 
     if not targets:
         typer.echo(f"No backup buckets older than {older_than_days}d.")
@@ -102,7 +149,10 @@ def prune_cmd(
             typer.echo(str(e), err=True)
             raise typer.Exit(code=2) from e
         for bucket in targets:
-            shutil.rmtree(bucket, ignore_errors=True)
+            if bucket.is_file():
+                bucket.unlink(missing_ok=True)
+            else:
+                shutil.rmtree(bucket, ignore_errors=True)
         changed["deleted_buckets"] = [b.name for b in targets]
     typer.echo(f"Deleted {len(targets)} backup bucket(s).")
 
