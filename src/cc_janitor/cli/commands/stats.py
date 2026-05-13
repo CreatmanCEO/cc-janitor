@@ -102,6 +102,10 @@ def sleep_hygiene(
                 "relative_date_match_count": len(p.relative_date_matches),
                 "cross_file_dup_count": p.cross_file_dup_count,
                 "contradicting_pair_count": len(p.contradicting_pairs),
+                "contradicting_pairs": [
+                    {"subject": subj, "files": [str(f) for f in files]}
+                    for subj, files in p.contradicting_pairs
+                ],
             } for p in projects],
         }, indent=2))
         return
@@ -115,4 +119,14 @@ def sleep_hygiene(
             f"dups {p.cross_file_dup_count}  "
             f"contradictions {len(p.contradicting_pairs)}"
         )
+        if p.contradicting_pairs:
+            typer.echo("    Contradictions:")
+            for subj, files in p.contradicting_pairs[:10]:
+                names = ", ".join(f.name for f in files)
+                typer.echo(f"      {subj[:60]} — {names}")
+            if len(p.contradicting_pairs) > 10:
+                typer.echo(
+                    f"      ... ({len(p.contradicting_pairs) - 10} more; "
+                    "use --json for full list)"
+                )
     typer.echo(f"Totals: {report.totals}")
