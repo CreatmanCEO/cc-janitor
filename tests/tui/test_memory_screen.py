@@ -66,6 +66,63 @@ async def test_tui_confirmed_restores_prior_env(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_memory_bindings_no_phantoms(mock_claude_home):
+    """C4: BINDINGS must only declare actions that are actually implemented."""
+    from cc_janitor.tui.screens.memory_screen import MemoryScreen
+
+    keys = {b[0] for b in MemoryScreen.BINDINGS}
+    assert keys == {"r", "a", "f"}, (
+        f"Memory BINDINGS should be {{r, a, f}} after C4; got {keys}"
+    )
+    for binding in MemoryScreen.BINDINGS:
+        action_name = f"action_{binding[1]}"
+        assert hasattr(MemoryScreen, action_name), (
+            f"Binding {binding!r} declared but {action_name} not implemented"
+        )
+
+
+@pytest.mark.asyncio
+async def test_memory_find_dupes_toggle(mock_claude_home):
+    """C4: pressing `f` toggles the duplicate-line preview pane."""
+    from textual.widgets import Static
+
+    from cc_janitor.tui.app import CcJanitorApp
+    from cc_janitor.tui.screens.memory_screen import MemoryScreen
+
+    app = CcJanitorApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        tabbed = app.query_one("TabbedContent")
+        tabbed.active = "memory"
+        await pilot.pause()
+        screen = app.query_one(MemoryScreen)
+        preview = app.query_one("#memory-preview", Static)
+
+        assert not getattr(screen, "_dupes_open", False)
+        screen.action_find_dupes()
+        await pilot.pause()
+        assert screen._dupes_open is True
+
+        # Toggle off
+        screen.action_find_dupes()
+        await pilot.pause()
+        assert screen._dupes_open is False
+        assert preview is not None
+
+
+@pytest.mark.asyncio
+async def test_memory_archive_uses_confirm_modal(mock_claude_home, monkeypatch):
+    """C4: action_archive must route through ConfirmModal."""
+    import inspect
+
+    from cc_janitor.tui.screens import memory_screen
+
+    src = inspect.getsource(memory_screen.MemoryScreen.action_archive)
+    assert "ConfirmModal" in src
+    assert "tui_confirmed" in src
+
+
+@pytest.mark.asyncio
 async def test_reinject_does_not_run_when_modal_cancels(mock_claude_home, monkeypatch):
     """Modal returning False must abort the reinject — no marker file written."""
     from cc_janitor.core.reinject import is_reinject_pending
