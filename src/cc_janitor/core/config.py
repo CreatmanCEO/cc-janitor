@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import sys
 import tomllib
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from .state import get_paths
+
+# Tracks paths for which we have already emitted a parse-error warning,
+# so repeated load_config() calls within a single process do not spam.
+_WARNED_PATHS: set[str] = set()
 
 
 @dataclass(frozen=True)
@@ -46,7 +51,14 @@ def load_config(path: Path | None = None) -> Config:
         return DEFAULTS
     try:
         data = tomllib.loads(p.read_text(encoding="utf-8"))
-    except (tomllib.TOMLDecodeError, OSError):
+    except (tomllib.TOMLDecodeError, OSError) as e:
+        key = str(p)
+        if key not in _WARNED_PATHS:
+            _WARNED_PATHS.add(key)
+            print(
+                f"WARN: config.toml at {p} failed to parse ({e}); using defaults",
+                file=sys.stderr,
+            )
         return DEFAULTS
     dd = data.get("dream_doctor", {}) or {}
     sn = data.get("snapshots", {}) or {}

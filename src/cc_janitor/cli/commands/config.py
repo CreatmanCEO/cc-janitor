@@ -10,8 +10,55 @@ from .._audit import audit_action
 
 config_app = typer.Typer(
     no_args_is_help=True,
-    help="Export/import cross-machine config bundle",
+    help="Export/import cross-machine config bundle; scaffold config.toml",
 )
+
+
+CONFIG_TOML_TEMPLATE = """\
+# cc-janitor user config. All keys are optional; values shown are defaults.
+# Location: ~/.cc-janitor/config.toml. Reloaded on every CLI invocation.
+
+[dream_doctor]
+# Free-disk warning floor for ~/.cc-janitor/backups/ (MB).
+disk_warning_mb = 100
+# WARN when a project's memory dir exceeds this many .md files.
+memory_file_count_threshold = 50
+# WARN when MEMORY.md exceeds this many lines (Auto Dream input bloat).
+memory_md_line_threshold = 180
+
+[snapshots]
+# Days to keep raw <pair_id>-{pre,post}/ mirrors before tar-compaction.
+raw_retention_days = 7
+# Days to keep <pair_id>.tar.gz before `dream prune --apply` drops them.
+tar_retention_days = 30
+
+[hygiene]
+# Extra terms (Russian/English/etc.) flagged as relative-date by
+# `stats sleep-hygiene`. Defaults already cover yesterday/today/recently
+# and Russian equivalents.
+relative_date_terms_extra = []
+# Token-Jaccard threshold above which "never X" + "always X" pairs in
+# feedback memory are flagged as contradictory. 0.0 = always pair; 1.0 = never.
+contradiction_jaccard_threshold = 0.5
+"""
+
+
+@config_app.command("init")
+def init_cmd(
+    force: bool = typer.Option(
+        False, "--force", help="Overwrite existing config.toml"
+    ),
+) -> None:
+    """Scaffold ``~/.cc-janitor/config.toml`` with documented defaults."""
+    target = get_paths().home / "config.toml"
+    if target.exists() and not force:
+        typer.echo(
+            f"config.toml already exists at {target}; pass --force to overwrite."
+        )
+        raise typer.Exit(code=1)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(CONFIG_TOML_TEMPLATE, encoding="utf-8")
+    typer.echo(f"Wrote {target}")
 
 
 @config_app.command("export")
