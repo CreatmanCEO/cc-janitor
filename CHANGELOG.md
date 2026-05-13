@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-05-13
+
+### Fixed
+- **Windows out-of-box crash.** Many subcommands (`session list`, `perms audit`,
+  etc.) crashed with `UnicodeEncodeError: 'charmap' codec can't encode characters`
+  when invoked on the default Windows console (cp1251/cp866) against real Claude
+  Code data containing Cyrillic / CJK / emoji paths. Fixed by forcing
+  `sys.stdout.reconfigure(encoding="utf-8", errors="replace")` at entry point
+  on `sys.platform == "win32"`. Users no longer need to set `PYTHONIOENCODING=utf-8`.
+- New end-to-end test in `tests/unit/test_main_utf8.py` reproduces the failure
+  on Windows by spawning a subprocess with PYTHONIOENCODING unset; skipped on
+  Linux CI.
+
 ## [0.4.0] — 2026-05-11
 
 ### Added — Phase 4: Dream safety net
