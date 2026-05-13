@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import json
 import shutil
+import tarfile
+import tempfile
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -158,6 +162,59 @@ def history() -> list[DreamSnapshotPair]:
             continue
         out.append(DreamSnapshotPair(**d))
     return out
+
+
+def resolve_pair_paths(
+    pair_id: str,
+) -> tuple[Path, Path, Callable[[], None]]:
+    """Resolve a pair's pre/post directories regardless of storage form.
+
+    Returns ``(pre_path, post_path, cleanup)``:
+
+    - if raw ``<pair_id>-pre`` / ``<pair_id>-post`` directories exist under
+      ``backups/dream/``, returns them and a no-op cleanup;
+    - else if ``<pair_id>.tar.gz`` exists, extracts ``pre/`` and ``post/``
+      members to a tempdir, returns those paths plus a cleanup callable
+      that removes the tempdir;
+    - else raises ``FileNotFoundError`` with the pair id.
+
+    Callers MUST run ``cleanup()`` in a ``finally`` block.
+    """
+    root = _dream_root()
+    pre = root / f"{pair_id}-pre"
+    post = root / f"{pair_id}-post"
+    if pre.exists() and post.exists():
+        return pre, post, lambda: None
+    tar = root / f"{pair_id}.tar.gz"
+    if tar.exists():
+        tmpdir = Path(tempfile.mkdtemp(prefix=f"cc-janitor-dream-{pair_id}-"))
+        try:
+            with tarfile.open(tar, "r:gz") as tf:
+                tf.extractall(tmpdir, filter="data")
+        except Exception:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            raise
+        pre_t = tmpdir / "pre"
+        post_t = tmpdir / "post"
+
+        def _cleanup() -> None:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+        return pre_t, post_t, _cleanup
+    raise FileNotFoundError(
+        f"Dream pair {pair_id!r} has neither raw mirrors nor tar archive "
+        f"under {root}."
+    )
+
+
+@contextmanager
+def pair_paths(pair_id: str) -> Iterator[tuple[Path, Path]]:
+    """Context-manager wrapper around :func:`resolve_pair_paths`."""
+    pre, post, cleanup = resolve_pair_paths(pair_id)
+    try:
+        yield pre, post
+    finally:
+        cleanup()
 
 
 def project_slug_from_memory_dir(memory_dir: Path) -> str:

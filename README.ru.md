@@ -1,102 +1,136 @@
 # cc-janitor
 
-Наводит порядок в окружении Claude Code — сессии, права, контекст, хуки.
+Наводит порядок в окружении Claude Code — сессии, права, контекст, хуки,
+расписание, Auto Dream.
 
-Первый единый TUI/CLI-инструмент, объединяющий очистку сессий, прополку
-прав доступа, инспекцию CLAUDE.md/памяти, отладку хуков (Phase 2) и
-плановое обслуживание (Phase 2) — все рутинные операции, которые никто
-больше не автоматизирует, собраны в одном месте.
+Единый TUI/CLI: чистка сессий, прополка прав, инспекция CLAUDE.md и
+memory-файлов, отладчик хуков, планировщик задач, сеть страховки для
+Auto Dream — всё, что больше никто не автоматизирует, в одном инструменте.
 
-**Языки:** English / Русский (переключение F2 в TUI, `--lang ru` в CLI)
+**Языки:** English / Русский (F2 в TUI, `--lang ru` в CLI)
 
 ## Стек
 
 - **Язык:** Python 3.11+
-- **TUI:** [Textual](https://textual.textualize.io/) (терминальный UI-фреймворк)
+- **TUI:** [Textual](https://textual.textualize.io/)
 - **CLI:** [Typer](https://typer.tiangolo.com/)
 - **Оценка токенов:** OpenAI `tiktoken` (cl100k_base, погрешность ~5% для Claude)
 - **Тесты:** pytest + pytest-asyncio + pytest-textual-snapshot
 - **Дистрибуция:** PyPI через `uv tool` / `pipx`
 
-## Возможности (Phase 1 MVP)
+## Возможности
 
 ### Сессии
-- Список, поиск и предпросмотр сессий Claude Code в `~/.claude/projects/`
-- Мягкое удаление в восстановимую корзину; возврат через `cc-janitor trash restore`
-- Просмотр compact-summaries и собственных markdown-сводок индексатора
+- Список, поиск и предпросмотр сессий из `~/.claude/projects/`
+- Мягкое удаление в `~/.cc-janitor/.trash/`; возврат через `cc-janitor trash restore`
+- Просмотр compact-summaries и markdown-сводок индексатора
 
-### Права доступа
+### Права
 - Обнаружение правил во всех 5 слоях settings.json + `~/.claude.json` approvedTools
-- Маркировка устаревших правил (без совпадений за 90 дней) по транскриптам
-- Дедупликация (subsumed/exact) и прополка (stale) — с бэкапами перед записью
+- Маркировка устаревших (без совпадений за 90 дней) по реальным транскриптам
+- Дедупликация и прополка — с бэкапом перед каждой записью
 
-### Инспектор контекста
-- Обход иерархии CLAUDE.md, список memory-файлов, список включённых скиллов
-- Расчёт стоимости в байтах/токенах по каждому файлу + суммарно на запрос
-- Оценка $ по входной ставке Opus
+### Контекст
+- Обход иерархии CLAUDE.md, список memory, список включённых скиллов
+- Стоимость в байтах/токенах + суммарно на запрос, оценка $ по Opus
+
+### Память (Phase 2)
+- Парсинг frontmatter, классификация типа (user/feedback/project/reference)
+- Поиск кросс-файловых дублей, архив, смена типа, открытие в `$EDITOR`
+- TUI-таб с превью; reinject-маркер для следующего вызова инструмента
+
+### Хуки (Phase 2)
+- Discovery во всех слоях, валидация схемы, симуляция с реалистичным stdin
+- Обратимый logging-wrapper; toggle из TUI идёт через ConfirmModal
+
+### Планировщик (Phase 2)
+- Cron / schtasks через единый `Scheduler` ABC
+- 6 шаблонов: perms-prune, trash-cleanup, session-prune, context-audit,
+  backup-rotate, dream-tar-compact
+- Первый прогон после `add` — всегда `--dry-run`; `promote` переводит в live
+
+### Монорепо + watcher + stats (Phase 3)
+- Обход `.claude/` под произвольным корнем, классификация real/nested/junk
+- Фоновый watcher для авто-reinject (опт-ин, `psutil` экстра)
+- Дашборд с историей: `cc-janitor stats [--since 30d]`, ASCII-sparklines в TUI
+- Экспорт/импорт конфиг-бандла с SHA-256 манифестом
+
+### Сеть страховки Auto Dream (Phase 4)
+- Снимок memory-каталога до каждого цикла Auto Dream, диф после, откат при
+  необходимости. Закрывает upstream-issues #47959, #50694, #38493, #38461.
+- `dream history` / `dream diff` / `dream doctor` (10 проверок) / `dream
+  rollback --apply`
+- Tar-сжатие старых пар (`backups tar-compact`); диф и откат на tar-парах
+  работают прозрачно через временное извлечение.
+- `stats sleep-hygiene` — размер MEMORY.md, плотность относительных дат,
+  кросс-файловые дубли, противоречия в feedback-памяти
+- Откат `dream rollback` обратим через `cc-janitor undo`
 
 ## Установка
 
-> ⚠️ **v0.1.x ещё не опубликована на PyPI.** Пока устанавливайте из исходников:
-
 ```bash
-# Рекомендуется — uv tool из исходников
-uv tool install git+https://github.com/CreatmanCEO/cc-janitor
+# Из PyPI (рекомендуется)
+uv tool install cc-janitor
+# или
+pipx install cc-janitor
 
-# Или pipx из исходников
-pipx install git+https://github.com/CreatmanCEO/cc-janitor
+# Опциональный watcher-экстра (фоновый dream-snapshot демон)
+uv tool install "cc-janitor[watcher]"
 
-# Из локального клона для разработки
+# Из исходников для разработки
 git clone https://github.com/CreatmanCEO/cc-janitor && cd cc-janitor
 uv sync --all-extras
 uv run cc-janitor
 ```
 
-Публикация на PyPI появится после настройки Trusted Publisher на pypi.org. Отслеживайте в [issue #1](https://github.com/CreatmanCEO/cc-janitor/issues), когда он будет создан.
-
 ## Быстрый старт
 
 ```bash
-# Запуск TUI
+# TUI
 cc-janitor
 
-# CLI: список сессий
+# Список сессий
 cc-janitor session list
 
 # Аудит правил доступа
 cc-janitor perms audit
 
-# Стоимость контекста на каждый запрос
+# Стоимость контекста на запрос
 cc-janitor context cost
 
-# Изменяющие команды требуют явного подтверждения:
-CC_JANITOR_USER_CONFIRMED=1 cc-janitor session prune --older-than 90d
+# Сеть страховки Auto Dream
+CC_JANITOR_USER_CONFIRMED=1 cc-janitor watch start --dream
+cc-janitor dream history
+cc-janitor dream doctor
+
+# Скаффолд пользовательского конфига
+cc-janitor config init
 ```
+
+Изменяющие команды требуют `CC_JANITOR_USER_CONFIRMED=1`. Read-only
+команды (list, show, audit, cost, history, diff, doctor) — без ограничений.
 
 ## Безопасность
 
-cc-janitor никогда не уничтожает данные молча:
-
-- **Шлюз `CC_JANITOR_USER_CONFIRMED=1`:** каждая изменяющая команда отказывается запускаться без этой переменной. Read-only команды (list, show, audit, cost) свободны от ограничений.
-- **Мягкое удаление:** удалённые сессии переезжают в `~/.cc-janitor/.trash/<timestamp>/` на 30 дней. Восстановление: `cc-janitor trash restore <id>`.
-- **Бэкап перед записью:** каждое изменение settings.json создаёт timestamped-бэкап в `~/.cc-janitor/backups/<sha-of-path>/`.
-- **Журнал аудита:** каждое мутирующее действие пишется JSONL-записью в `~/.cc-janitor/audit.log` (ротация при 10 МБ).
-
-> **Пользователям Windows:** `cc-janitor install-hooks` записывает POSIX-shell сниппет (`test -f`, `&&`). На нативной Windows без Git Bash / WSL хук будет молча падать. Кроссплатформенная поддержка PowerShell появится в 0.2.0 (Phase 2). Пока используйте Git Bash или WSL.
-
-## Использование изнутри Claude Code
-
-cc-janitor задуман так, чтобы его вызывали и пользователь (TUI / CLI), и сам Claude Code (CLI), но только по явному запросу. См. [docs/CC_USAGE.md](docs/CC_USAGE.md) — справку, которую Claude Code читает, чтобы решить, безопасно ли вызывать конкретный subcommand.
+- **Шлюз `CC_JANITOR_USER_CONFIRMED=1`** на каждой мутирующей команде.
+- **Мягкое удаление** в `~/.cc-janitor/.trash/<timestamp>/` на 30 дней.
+- **Бэкап перед записью** settings.json в `~/.cc-janitor/backups/<sha>/`.
+- **Журнал аудита** JSONL в `~/.cc-janitor/audit.log` (ротация при 10 МБ).
+- **`cc-janitor undo`** разворачивает последнюю обратимую операцию из
+  журнала — session delete, perms remove/prune/dedupe, memory archive,
+  dream rollback.
 
 ## Дорожная карта
 
-- [x] **Phase 1** (текущий релиз): сессии / права / инспектор контекста / CLI / TUI / примитивы безопасности
-- [ ] **Phase 2**: редактор памяти, reinject-хук, отладчик хуков с симуляцией, планировщик (cron / Task Scheduler)
-- [ ] **Phase 3**: вложенные `.claude/` в монорепо, авто-reinject watcher, дашборд статистики, экспорт/импорт конфига
+- [x] **Phase 1** — сессии / права / контекст / CLI / TUI / примитивы безопасности
+- [x] **Phase 2** — память, reinject, отладчик хуков, планировщик
+- [x] **Phase 3** — монорепо, watcher, stats, экспорт/импорт конфига
+- [x] **Phase 4** — Auto Dream safety net, sleep-hygiene, settings audit hook
+- [ ] **Phase 5** — кроссплатформенные fix-up для хуков, `dream fix-stale-lock`, мутирующие действия в Dream-табе
 
 ## Контрибьюторам
 
-Issues и PR приветствуются. См. [docs/architecture.md](docs/architecture.md) — обзор кодовой базы.
+Issues и PR приветствуются. См. [docs/architecture.md](docs/architecture.md).
 
 ## Лицензия
 

@@ -11,6 +11,8 @@ Reversible commands (and their reversal strategy):
   back to ``changed["archived"]["original"]``.
 - ``config import`` — restore each affected file from its
   ``backups/import-<ts>/`` snapshot (recorded in the entry's ``backup_path``).
+- ``dream rollback`` — restore the memory dir from the trash bucket the
+  rollback wrote to (``changed.trash_path`` + ``changed.target``).
 
 Anything else (memory edit, perms add, hooks toggle-logging, schedule add/
 remove, trash empty) is non-reversible and ``undo`` will refuse.
@@ -41,6 +43,7 @@ REVERSIBLE_CMDS = {
     "perms dedupe",
     "memory archive",
     "config import",
+    "dream rollback",
 }
 
 
@@ -58,6 +61,8 @@ def _is_reversible(entry: AuditEntry) -> bool:
         return bool(ch.get("archived"))
     if entry.cmd == "config import":
         return bool(entry.backup_path or ch.get("backup_path"))
+    if entry.cmd == "dream rollback":
+        return bool(ch.get("trash_path") and ch.get("target"))
     return False
 
 
@@ -114,6 +119,11 @@ def _plan(entry: AuditEntry) -> list[str]:
     elif entry.cmd == "config import":
         bp = entry.backup_path or ch.get("backup_path")
         steps.append(f"config import: restore tree from {bp}")
+    elif entry.cmd == "dream rollback":
+        steps.append(
+            f"restore memory dir {ch.get('target')} from trash "
+            f"{ch.get('trash_path')}"
+        )
     return steps
 
 
@@ -168,6 +178,28 @@ def _execute(entry: AuditEntry) -> dict:
         raise NotImplementedError(
             "config import undo requires --backup-path support (Phase 4)."
         )
+
+    if entry.cmd == "dream rollback":
+        trash_path = Path(ch["trash_path"])
+        target = Path(ch["target"])
+        if not trash_path.exists():
+            raise RuntimeError(
+                f"dream rollback trash bucket missing: {trash_path}"
+            )
+        # Wipe the current (rolled-back) memory dir and restore the pre-rollback
+        # state from the recorded trash bucket.
+        if target.exists():
+            shutil.rmtree(target, ignore_errors=True)
+        target.mkdir(parents=True, exist_ok=True)
+        for f in trash_path.rglob("*"):
+            if f.is_file():
+                rel = f.relative_to(trash_path)
+                out = target / rel
+                out.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(f), str(out))
+        result["restored_memory_dir"] = str(target)
+        result["from_trash"] = str(trash_path)
+        return result
 
     raise RuntimeError(f"not reversible: {entry.cmd}")
 

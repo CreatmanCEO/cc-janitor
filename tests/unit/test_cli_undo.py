@@ -119,3 +119,39 @@ def test_undo_with_entry_id_selects_older(mock_claude_home, monkeypatch):
     r2 = CliRunner().invoke(app, ["undo", "2026-05-10"])
     assert r2.exit_code == 0
     assert "2026-05-10" in r2.stdout
+
+
+def test_undo_dream_rollback_restores_memory(tmp_path, monkeypatch):
+    """0.4.2: dream rollback is reversible via cc-janitor undo."""
+    from datetime import UTC, datetime
+    from pathlib import Path
+
+    from cc_janitor.core.dream_snapshot import (
+        record_pair,
+        snapshot_post,
+        snapshot_pre,
+    )
+
+    monkeypatch.setenv("CC_JANITOR_HOME", str(tmp_path / "jhome"))
+    monkeypatch.setattr(Path, "home", lambda: tmp_path, raising=False)
+    monkeypatch.setenv("CC_JANITOR_USER_CONFIRMED", "1")
+
+    mem = tmp_path / ".claude" / "projects" / "-proj" / "memory"
+    mem.mkdir(parents=True)
+    (mem / "MEMORY.md").write_text("pre-content\n")
+    pre = snapshot_pre("p1", mem)
+    (mem / "MEMORY.md").write_text("post-content\n")
+    post = snapshot_post("p1", mem)
+    record_pair("p1", mem, project_slug="proj", dream_pid_in_lock=1,
+                ts_pre=datetime.now(UTC), ts_post=datetime.now(UTC),
+                pre_dir=pre, post_dir=post)
+
+    # Rollback — memory is now pre-content
+    r1 = CliRunner().invoke(app, ["dream", "rollback", "p1", "--apply"])
+    assert r1.exit_code == 0, r1.stdout
+    assert (mem / "MEMORY.md").read_text() == "pre-content\n"
+
+    # Undo — memory should be back to post-content
+    r2 = CliRunner().invoke(app, ["undo", "--apply"])
+    assert r2.exit_code == 0, r2.stdout + (r2.stderr or "")
+    assert (mem / "MEMORY.md").read_text() == "post-content\n"

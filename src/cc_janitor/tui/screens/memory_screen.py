@@ -5,7 +5,11 @@ from textual.widget import Widget
 from textual.widgets import DataTable, Select, Static
 
 from ...cli._audit import audit_action
-from ...core.memory import discover_memory_files
+from ...core.memory import (
+    archive_memory_file,
+    discover_memory_files,
+    find_duplicate_lines,
+)
 from .._confirm import ConfirmModal, tui_confirmed
 from ._source_filter import source_filter_options
 
@@ -20,11 +24,12 @@ class MemoryScreen(Widget):
     #memory-preview { height: 40%; border: round green; padding: 1; }
     """
 
+    # 0.4.2: `e` (edit) and `m` (move-type) were declared but never
+    # implemented in 0.4.x; they have been removed until the corresponding
+    # Select widget / editor-spawn work lands (tracked for 0.5.x).
     BINDINGS = [
-        ("e", "edit", "Edit"),
-        ("a", "archive", "Archive"),
-        ("m", "move_type", "Move type"),
         ("r", "reinject", "Reinject"),
+        ("a", "archive", "Archive"),
         ("f", "find_dupes", "Duplicates"),
     ]
 
@@ -97,3 +102,60 @@ class MemoryScreen(Widget):
         self.app.push_screen(
             ConfirmModal("Queue memory reinject on next tool call?"), _on_confirm
         )
+
+    def _highlighted(self):
+        try:
+            table: DataTable = self.query_one("#memory-table", DataTable)
+            row = table.cursor_row
+            if row is None:
+                return None
+            return self._items[row]
+        except (IndexError, AttributeError):
+            return None
+
+    def action_archive(self) -> None:
+        m = self._highlighted()
+        if m is None:
+            self.notify("No memory file selected", severity="warning")
+            return
+
+        def _on_confirm(ok: bool | None) -> None:
+            if not ok:
+                self.notify("Archive cancelled", severity="warning")
+                return
+            try:
+                with tui_confirmed(), audit_action(
+                    "memory archive", [str(m.path)], mode="tui"
+                ) as ch:
+                    dst = archive_memory_file(m.path)
+                    ch["archived"] = {
+                        "original": str(m.path),
+                        "archive_path": str(dst),
+                    }
+                self.notify(f"Archived {m.path.name}")
+                self._reload()
+            except Exception as exc:
+                self.notify(f"Archive failed: {exc}", severity="error")
+
+        self.app.push_screen(
+            ConfirmModal(f"Archive {m.path.name}? (reversible via cc-janitor undo)"),
+            _on_confirm,
+        )
+
+    def action_find_dupes(self) -> None:
+        preview = self.query_one("#memory-preview", Static)
+        if getattr(self, "_dupes_open", False):
+            self._dupes_open = False
+            preview.update("")
+            return
+        paths = [m.path for m in self._items]
+        dups = find_duplicate_lines(paths, min_length=8)
+        self._dupes_open = True
+        if not dups:
+            preview.update("[b]Duplicate lines[/]\n\n(no duplicates found)")
+            return
+        lines = ["[b]Duplicate lines across files[/]\n"]
+        for d in dups[:50]:
+            files = ", ".join(p.name for p in d.files)
+            lines.append(f"  [{len(d.files)}x] {d.line[:80]}  →  {files}")
+        preview.update("\n".join(lines))

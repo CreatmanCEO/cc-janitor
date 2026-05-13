@@ -36,22 +36,20 @@ maintenance (Phase 2) — all the chores no one else automates, in one tool.
 
 ## Install
 
-> ⚠️ **v0.1.x is not yet on PyPI.** Install from source until then:
-
 ```bash
-# Recommended — uv tool from source
-uv tool install git+https://github.com/CreatmanCEO/cc-janitor
+# From PyPI (recommended)
+uv tool install cc-janitor
+# or
+pipx install cc-janitor
 
-# Or pipx from source
-pipx install git+https://github.com/CreatmanCEO/cc-janitor
+# Optional watcher extra (background dream-snapshot daemon)
+uv tool install "cc-janitor[watcher]"
 
-# From a local clone for development
+# From source for development
 git clone https://github.com/CreatmanCEO/cc-janitor && cd cc-janitor
 uv sync --all-extras
 uv run cc-janitor
 ```
-
-PyPI publishing arrives once Trusted Publisher is configured on pypi.org. Track via [issue #1](https://github.com/CreatmanCEO/cc-janitor/issues) once filed.
 
 ## Quick start
 
@@ -87,10 +85,13 @@ cc-janitor never silently destroys data:
 
 cc-janitor is designed to be invoked by both you (TUI / CLI) and Claude Code itself (CLI), but only on your explicit request. See [docs/CC_USAGE.md](docs/CC_USAGE.md) for the reference Claude Code reads when deciding whether a subcommand is safe to call.
 
-## Phase 4: Dream safety net
+## Dream safety net (Phase 4)
 
-**Dream safety net** — snapshot before Auto Dream, diff after, rollback if
-needed. Closes upstream Issues #47959, #50694, #38493, #38461.
+Snapshot the per-project memory dir before each Auto Dream cycle, diff
+afterwards, roll back if needed. Verified against upstream Claude Code
+Issues #47959 (silent Auto Dream memory deletion), #50694 (stale
+`.consolidate-lock`), #38493 (missing `.dream-log.md`), #38461
+(server-gate inference).
 
 ```bash
 # Opt-in: poll lock files and snapshot around every Auto Dream cycle
@@ -105,15 +106,27 @@ cc-janitor dream doctor
 
 # Roll back if Dream rewrote something you wanted
 CC_JANITOR_USER_CONFIRMED=1 cc-janitor dream rollback <pair_id> --apply
+
+# And undo the rollback if you change your mind
+cc-janitor undo --apply
 ```
+
+Rollback is reversible via `cc-janitor undo`. Tar-compacted pairs
+(weekly `dream-tar-compact` job) remain diffable and rollback-able —
+extraction happens transparently. Settings backups and Dream mirrors
+live in separate subtrees of `~/.cc-janitor/backups/`; `backups prune`
+no longer touches Dream restore points by default.
+
+Tunable thresholds live in `~/.cc-janitor/config.toml`; scaffold one with
+`cc-janitor config init`.
 
 ## Roadmap
 
-- [x] **Phase 1**: sessions / permissions / context inspector / CLI / TUI / safety primitives
-- [x] **Phase 2**: memory editor, reinject hook, hook debugger with simulation, scheduler (cron / Task Scheduler)
-- [x] **Phase 3**: monorepo nested .claude/ discovery, auto-reinject watcher, stats dashboard, export/import config
-- [x] **Phase 4**: Dream safety net — snapshot/diff/doctor/rollback, sleep-hygiene metrics, settings audit hook
-- [ ] **Phase 5**: cross-platform hook fixers, `dream fix-stale-lock`, deeper TUI for Dream pair review
+- [x] **Phase 1** — sessions / permissions / context inspector / CLI / TUI / safety primitives
+- [x] **Phase 2** — memory editor, reinject hook, hook debugger with simulation, scheduler (cron / Task Scheduler)
+- [x] **Phase 3** — monorepo nested `.claude/` discovery, auto-reinject watcher, stats dashboard, export/import config
+- [x] **Phase 4** — Dream safety net (snapshot/diff/doctor/rollback), sleep-hygiene metrics, settings audit hook
+- [ ] **Phase 5** — cross-platform hook fixers, `dream fix-stale-lock`, mutating Dream TUI actions, full I10/I11 closure
 
 ## Contributing
 

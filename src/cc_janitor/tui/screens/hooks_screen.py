@@ -4,7 +4,9 @@ from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import DataTable, Select, Static
 
+from ...cli._audit import audit_action
 from ...core.hooks import HookEntry, discover_hooks, simulate_hook
+from .._confirm import ConfirmModal, tui_confirmed
 from ._source_filter import source_filter_options
 
 
@@ -103,15 +105,33 @@ class HooksScreen(Widget):
             return
         from ...core.hooks import disable_logging, enable_logging
 
-        try:
-            if h.has_logging_wrapper:
-                disable_logging(h.event, matcher=h.matcher)
-                self.notify(f"Logging disabled for {h.event}/{h.matcher}")
-            else:
-                enable_logging(h.event, matcher=h.matcher)
-                self.notify(f"Logging enabled for {h.event}/{h.matcher}")
-        except Exception as exc:
-            self.notify(f"Failed: {exc}", severity="error")
+        will_enable = not h.has_logging_wrapper
+        verb = "Enable" if will_enable else "Disable"
+        question = f"{verb} logging for {h.event}/{h.matcher}?"
+
+        def _on_confirm(ok: bool | None) -> None:
+            if not ok:
+                self.notify("Toggle cancelled", severity="warning")
+                return
+            try:
+                with tui_confirmed(), audit_action(
+                    "hooks toggle-logging",
+                    [h.event, h.matcher, "enable" if will_enable else "disable"],
+                    mode="tui",
+                ):
+                    if will_enable:
+                        enable_logging(h.event, matcher=h.matcher)
+                    else:
+                        disable_logging(h.event, matcher=h.matcher)
+                self.notify(
+                    f"Logging {'enabled' if will_enable else 'disabled'} "
+                    f"for {h.event}/{h.matcher}"
+                )
+                self._reload()
+            except Exception as exc:
+                self.notify(f"Failed: {exc}", severity="error")
+
+        self.app.push_screen(ConfirmModal(question), _on_confirm)
 
     def action_view_source(self) -> None:
         h = self._highlighted()
